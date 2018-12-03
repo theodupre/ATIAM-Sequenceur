@@ -48,74 +48,99 @@ H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respec
 D_out : dimension d'une donnée en sortie (= D_in)
 D_z : dimension de l'epace latent
 """
-N, D_in, H_enc, D_z, H_dec, D_out = batch_size, 784, 512, 2, 512, 784
+N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 512, 2, 512, 784
 
-"""Module de l'encoder Q(Z|X) : une couche cachée Linear + Relu et deux couches de sorties Linear
-@param :    D_in : Dimension en entrée 
-            H_enc = Dimension de la couchée 
-            D_z : Dimension de l'espace latent et de sortie du decoder
 
-"""
-class Encoder(nn.Module):
-    def __init__(self, D_in, H_enc, D_z):
-        """
-        Instanciation des modules nécessaires pour le décodeur dans le constructeur
-        La fonction d'activation Relu n'est pas instancier ici car elle ne contient pas 
-        de paramètres pour la retropropagation
-        """
-        super(Encoder, self).__init__()
-        self.linear1 = nn.Linear(D_in, H_enc)
-        self.linear_mu = nn.Linear(H_enc, D_z)
-        self.linear_var = nn.Linear(H_enc, D_z)
-
-    def forward(self, x):
-        """
-        Assemblage des modules : 
-            Linear -> Relu  -> Linear -> mu
-                            -> Linear -> var
-                            
-        Le decodeur renvoit la moyenne mu et la variance var
-        """
-        h_relu = F.relu(self.linear1(x))
-        mu = self.linear_mu(h_relu)
-        var = self.linear_var(h_relu)
+class VAE(nn.Module):
+    def __init__(self, D_in, D_enc, D_z, D_dec, D_out):
+        super(VAE,self).__init__()
+        self.linearEnc = nn.Linear(D_in, D_enc)
+        self.linearMu = nn.Linear(D_enc, D_z)
+        self.linearVar = nn.Linear(D_enc, D_z)
+        self.linearDec = nn.Linear(D_z, D_dec)
+        self.linearOut = nn.Linear(D_dec, D_out)
         
-        return mu, var
-
-"""Module du Decoder P(X|Z) : une couche cachée Linear + Relu et une couche de sortie Linear + sigmoid
-@param :    D_z : Dimension en entrée du decoder qui correspond aux dimensions de l'espace latent
-            H_dec = Dimensions de la couchée cachée
-            D_out : Dimensions de l'espace latent de sortie (taille de l'image reconstruite)
-
-"""
-class Decoder(nn.Module):
-    def __init__(self, D_z, H_dec, D_out):
-        """
-        Instanciation des modules du decoder : 
-        """
-        super(Decoder, self).__init__()
-        self.linear_hidden = nn.Linear(D_z, H_dec)
-        self.linear_out = nn.Linear(H_dec, D_out)
-
-    def forward(self, x):
-        """
-        Assemblage des modules :
-            Linear -> Relu -> Linear -> Sigmoid -> image en sortie
+    def forward(self,x):
+        mu, logvar = self.encoder(x)
+        z_sample = self.reparametrize(mu, logvar)
+        x_approx = self.decoder(z_sample)
         
-        Retourne l'image reconstruite
-        """
-        h_relu = F.relu(self.linear_hidden(x))
-        h_out = F.sigmoid(self.linear_out(h_relu))
+        return x_approx, mu, logvar
+    
+    def encoder(self,x):
         
-        return h_out
+        h_relu = F.relu(self.linearEnc(x))
+        mu = self.linearMu(h_relu)
+        logvar = self.linearVar(h_relu)
+        
+        return mu, logvar
+    
+    def reparametrize(self, mu,logvar):
+        
+        std = torch.exp(0.5*logvar)
+        eps = torch.randn_like(std)
+        
+        return eps.mul(std).add_(mu)
+    
+    def decoder(self, z_sample):
+        
+        h_relu = F.relu(self.linearDec(z_sample))
+        h_out = F.sigmoid(self.linearOut(h_relu))
+        
+        return h_out 
 
+def vae_loss(x, x_sample, mu, logvar):
+    recons_loss = nn.BCELoss(reduction='sum')
+    KL_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    
+    return recons_loss(x_sample, x) + KL_div
+    
+def train_vae(epoch):
+    
+    vae.train()
+    for batch_idx, (data, _) in enumerate(train_loader):
+        optimizer.zero_grad()
+        data = data.reshape((-1,784))
+        
+        x_approx, mu, logvar = vae(data)
+        loss = vae_loss(data, x_approx, mu, logvar)
+        loss.backward()
+        optimizer.step()
+        
+        # Affichage de la loss tous les 100 batchs
+        if batch_idx % 10 == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.item()))
+            display_data(batch_size - 1, x_approx, data)
+        
+        
+def test_vae(epoch):
+    
+    vae.eval()
+    with torch.no_grad():
+        for batch_idx, (data, target) in enumerate(test_loader):
+            optimizer.zero_grad()
+            data = data.reshape((-1,784))
+            
+            x_approx, mu, logvar = vae(data)
+            loss = vae_loss(x_approx, data, mu, logvar)
+            
+            # Affichage de la loss tous les 100 batchs
+            if batch_idx % 10 == 0:
+                print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                    epoch, batch_idx * len(data), len(train_loader.dataset),
+                    100. * batch_idx / len(train_loader), loss.item()))
+                display_data(batch_size - 1, x_approx, data)
+                
+    
 '''
 Fonction d'affichage d'une image et de sa reconstruction
 @param: data_id: id entre 0 et batch_size
 '''
-def display_data(data_id):
-        approx_data = X_sample[data_id].detach().numpy().reshape((28,28))
-        data = X[data_id].detach().numpy().reshape((28,28))
+def display_data(data_id, x_approx, data):
+        approx_data = x_approx[data_id].detach().numpy().reshape((28,28))
+        data = data[data_id].detach().numpy().reshape((28,28))
         plt.figure
         plt.subplot(1,2,1)
         plt.imshow(data, cmap='gray')
@@ -124,35 +149,24 @@ def display_data(data_id):
         plt.imshow(approx_data, cmap='gray')
         plt.xlabel('Reconstructed data')        
     
-"""
-Reparametrization trick.  
-Tirage d'un valeur z dans la distribution N(mu,var) afin de pouvoir décoder des valeurs 
-déterministes (i.e. une image) et non une distribution de probabilité d'image. 
-"""        
-def sample_z(mu, log_sigma):
-    eps = torch.randn(N,D_z)
-    z_sample = mu + torch.exp(log_sigma / 2) * eps
-    return z_sample
 
 
 #%% Instanciation du VAE
 
-# Instanciation des modules
-encoder = Encoder(D_in, H_enc, D_z)
-decoder = Decoder(D_z, H_dec, D_out)
-
-# Instanciation des optimizer (i.e. mise à jour des poids)
-optimizer_enc = torch.optim.Adam(encoder.parameters(), lr=1e-4)
-optimizer_dec = torch.optim.Adam(decoder.parameters(), lr=1e-4)
-
-# Instanciation de la Loss (seulement la partie évaluation de la recontruction)
-loss_recons = nn.BCELoss()
+vae = VAE(D_in, D_enc, D_z, D_dec, D_out)
+optimizer = torch.optim.Adam(vae.parameters(), 1e-4)
 
 #%% Training loop
 
-# Itération du modèle sur 20 epoch
-for epoch in range(10): 
+# Itération du modèle sur 5 epoches
+for epoch in range(5): 
     
+    
+    train_vae(epoch)
+    test_vae(epoch)
+    
+    
+    '''
     # parcourt de tous les batchs à chaque epoch
     for batch_idx, (data, target) in enumerate(train_loader): 
         # target n'est pas utilisé car la loss s'évalue par rapport à la donnée 
@@ -180,13 +194,9 @@ for epoch in range(10):
         optimizer_dec.step()
         
         # Affichage de la loss tous les 100 batchs
-        if batch_idx % 100 == 0:
+        if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
             display_data(batch_size - 1)
-
-
-
-
-
+    '''    
