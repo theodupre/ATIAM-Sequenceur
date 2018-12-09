@@ -95,13 +95,13 @@ class VAE(nn.Module):
         
         return h_out 
 
-def vae_loss(x, x_sample, mu, logvar):
+def vae_loss(x, x_sample, mu, logvar, beta):
     recons_loss = nn.BCELoss(reduction='sum')
     KL_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+    return recons_loss(x_sample, x) + beta*KL_div
     
-    return recons_loss(x_sample, x) + KL_div
-    
-def train_vae(epoch):
+def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
     for batch_idx, (data, _) in enumerate(train_loader):
@@ -109,7 +109,7 @@ def train_vae(epoch):
         data = data.reshape((-1,784))
         
         x_approx, mu, logvar = vae(data)
-        loss = vae_loss(data, x_approx, mu, logvar)
+        loss = vae_loss(data, x_approx, mu, logvar, beta)
         train_loss += loss.item()
         loss.backward()
         optimizer.step()
@@ -124,7 +124,7 @@ def train_vae(epoch):
           epoch, train_loss*N / len(train_loader.dataset)))
         
         
-def test_vae(epoch):
+def test_vae(epoch,beta):
     test_loss = 0
     vae.eval()
     with torch.no_grad():
@@ -133,7 +133,7 @@ def test_vae(epoch):
             data = data.reshape((-1,784))
             
             x_approx, mu, logvar = vae(data)
-            loss = vae_loss(x_approx, data, mu, logvar)
+            loss = vae_loss(x_approx, data, mu, logvar, beta)
             test_loss += loss.item()
             
             # Sauvegarde d'exemples de données reconstituées avec les données d'origine
@@ -155,11 +155,13 @@ vae = VAE(D_in, D_enc, D_z, D_dec, D_out)
 optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
 
 #%% Training loop
-
+beta = 0 # warm up coefficient 
+num_epoch = 50
 # Itération du modèle sur 50 epoches
-for epoch in range(50): 
-    train_vae(epoch)
-    test_vae(epoch)
+for epoch in range(num_epoch):
+    beta += 1/num_epoch
+    train_vae(epoch,beta)
+    test_vae(epoch,beta)
     
     # Sauvegarde d'exemples de données générées à partir de l'espace latent
     with torch.no_grad():
