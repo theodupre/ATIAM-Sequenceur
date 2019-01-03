@@ -93,6 +93,8 @@ vae = VAE_BERNOULLI(D_in, D_enc, D_z, D_dec, D_out);
 vae.load_state_dict(torch.load('models/VAE_BERNOULLI_8'))
 vae.eval()
 
+
+
 sample = torch.rand(1,8)
 print(sample)
 sample = vae.decoder(sample)

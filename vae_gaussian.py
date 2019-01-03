@@ -99,9 +99,9 @@ class VAE(nn.Module):
 
 def vae_loss(x, x_sample, mu, logvar, beta):
     recons_loss = nn.BCELoss(reduction='sum')
-    KL_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    KL_div = 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    return -recons_loss(x_sample, x) + beta*KL_div
+    return recons_loss(x_sample, x) + beta*KL_div
     
 def train_vae(epoch,beta):
     train_loss = 0
