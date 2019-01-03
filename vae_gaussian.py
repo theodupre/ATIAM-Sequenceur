@@ -101,7 +101,7 @@ def vae_loss(x, x_sample, mu, logvar, beta):
     recons_loss = nn.BCELoss(reduction='sum')
     KL_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    return recons_loss(x_sample, x) + beta*KL_div
+    return -recons_loss(x_sample, x) + beta*KL_div
     
 def train_vae(epoch,beta):
     train_loss = 0
@@ -157,11 +157,11 @@ vae = VAE(D_in, D_enc, D_z, D_dec, D_out)
 optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
 
 #%% Training loop
-beta = 0 # warm up coefficient 
+beta = 4 # warm up coefficient 
 num_epoch = 50
 # Itération du modèle sur 50 epoches
 for epoch in range(num_epoch):
-    beta += 1/num_epoch
+    #beta += 1/num_epoch
     train_vae(epoch,beta)
     test_vae(epoch,beta)
     
@@ -180,4 +180,4 @@ for epoch in range(num_epoch):
 
 #%% Saving model
         
-torch.save(vae.state_dict(), saving_dir + 'VAE_MNIST')        
+torch.save(vae.state_dict(), saving_dir + 'VAE_GAUSSIAN_2')        

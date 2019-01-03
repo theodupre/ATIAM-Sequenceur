@@ -52,7 +52,7 @@ H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respec
 D_out : dimension d'une donnée en sortie (= D_in)
 D_z : dimension de l'epace latent
 """
-N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 512, 5, 512, 784
+N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 512, 2, 512, 784
 
 
 class VAE(nn.Module):
@@ -164,19 +164,18 @@ for epoch in range(num_epoch):
     test_vae(epoch,beta)
     
     # Sauvegarde d'exemples de données générées à partir de l'espace latent
-    with torch.no_grad():
-        #sample = torch.randn(64, D_z)
-        Nd = 8
-        sample_x, sample_y = np.meshgrid(np.linspace(0,1,Nd),np.linspace(0,1,Nd))
-        sample_x = sample_x.reshape(Nd**2,1)
-        sample_y = sample_y.reshape(Nd**2,1)
-        sample = np.concatenate((sample_x,sample_y),axis=1)
-        sample = torch.from_numpy(sample).type(torch.float)
-        sample = vae.decoder(sample)
-        save_image(sample.view(Nd**2, 1, 28, 28), 
-'results/sample_' + str(epoch) + '.png')
+#    with torch.no_grad():
+#        Nd = 8
+#        sample_x, sample_y = np.meshgrid(np.linspace(0,1,Nd),np.linspace(0,1,Nd))
+#        sample_x = sample_x.reshape(Nd**2,1)
+#        sample_y = sample_y.reshape(Nd**2,1)
+#        sample = np.concatenate((sample_x,sample_y),axis=1)
+#        sample = torch.from_numpy(sample).type(torch.float)
+#        sample = vae.decoder(sample)
+#        save_image(sample.view(Nd**2, 1, 28, 28), 
+#'results/sample_' + str(epoch) + '.png')
 
 #%% Saving model
         
-torch.save(vae.state_dict(), saving_dir + 'VAE_MNIST')        
+torch.save(vae.state_dict(), saving_dir + 'VAE_BERNOULLI_2')        
 

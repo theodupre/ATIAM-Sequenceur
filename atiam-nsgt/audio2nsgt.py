@@ -3,7 +3,7 @@ import argparse, os, re, librosa
 from skimage.transform import resize
 
 from nsgt3.cq import NSGT
-from nsgt.fscale import Scale, OctScale, LogScale, MelScale
+from nsgt3.fscale import Scale, OctScale, LogScale, MelScale
 
 VALID_EXTS=['.wav', '.aif', '.aiff']
 SCALE_DICT = {'oct':OctScale, 'log':LogScale, 'mel':MelScale}
@@ -48,7 +48,7 @@ for i in range(len(input_files)):
     transform = transform_abs*np.exp(1j*transform_angle)
 
     current_output_file = output_files[i]
-    current_dir = os.path.dirname(current_output_file)
+    current_dir = os.path.dirname(current_output_file);
     if not os.path.exists(current_dir):
         os.makedirs(current_dir)
     np.save(output_files[i], transform)
