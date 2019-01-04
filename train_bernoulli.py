@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov 27 19:34:36 2018
+Created on Fri Dec 14 11:06:47 2018
 
 @author: theophile
-
-30/11 : Code du VAE en pytorch, s'execute sans erreur mais ne semble pas fonctionner 
-        correctement (loss converge vers -10 ?)
-        En plus l'image reconstituée est toujours identique (une sorte de 9 très floue)
 """
 import os
 import numpy as np
@@ -17,6 +13,8 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader 
 from torchvision.utils import save_image
+
+from src import vae_bernoulli as bernoulli
 
 #%% Loading data
 '''
@@ -39,7 +37,7 @@ test_dataset = datasets.MNIST(data_dir, train=False, download=True,
 train_loader = DataLoader(train_dataset,batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset,batch_size=batch_size, shuffle=True)
 
-# Creation d'un dossier results/ pour stocker les resultats
+# Creation d'un dossier results/ pour stocker les resultats et d'un dossier models/ pour sauvegarder les paramètres
 results_dir = 'results/'
 saving_dir = 'models/'
 if not os.path.exists(results_dir):
@@ -59,50 +57,6 @@ D_z : dimension de l'epace latent
 N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 512, 2, 512, 784
 
 
-class VAE(nn.Module):
-    def __init__(self, D_in, D_enc, D_z, D_dec, D_out):
-        super(VAE,self).__init__()
-        self.linearEnc = nn.Linear(D_in, D_enc)
-        self.linearMu = nn.Linear(D_enc, D_z)
-        self.linearVar = nn.Linear(D_enc, D_z)
-        self.linearDec = nn.Linear(D_z, D_dec)
-        self.linearOut = nn.Linear(D_dec, D_out)
-        
-    def forward(self,x):
-        mu, logvar = self.encoder(x)
-        z_sample = self.reparametrize(mu, logvar)
-        x_approx = self.decoder(z_sample)
-        
-        return x_approx, mu, logvar
-    
-    def encoder(self,x):
-        
-        h_relu = F.relu(self.linearEnc(x))
-        mu = self.linearMu(h_relu)
-        logvar = self.linearVar(h_relu)
-        
-        return mu, logvar
-    
-    def reparametrize(self, mu,logvar):
-        
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std, requires_grad = True)
-        
-        return eps.mul(std).add_(mu)
-    
-    def decoder(self, z_sample):
-        
-        h_relu = F.relu(self.linearDec(z_sample))
-        h_out = F.sigmoid(self.linearOut(h_relu))
-        
-        return h_out 
-
-def vae_loss(x, x_sample, mu, logvar, beta):
-    recons_loss = nn.BCELoss(reduction='sum')
-    KL_div = 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-
-    return recons_loss(x_sample, x) + beta*KL_div
-    
 def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
@@ -110,8 +64,8 @@ def train_vae(epoch,beta):
         optimizer.zero_grad()
         data = data.reshape((-1,784))
         
-        x_approx, mu, logvar = vae(data)
-        loss = vae_loss(data, x_approx, mu, logvar, beta)
+        x_approx, mu = vae(data)
+        loss = bernoulli.vae_loss(data, x_approx, mu, beta)
         train_loss += loss.item()
         loss.backward()
         optimizer.step()
@@ -134,8 +88,8 @@ def test_vae(epoch,beta):
             optimizer.zero_grad()
             data = data.reshape((-1,784))
             
-            x_approx, mu, logvar = vae(data)
-            loss = vae_loss(x_approx, data, mu, logvar, beta)
+            x_approx, mu = vae(data)
+            loss = bernoulli.vae_loss(x_approx, data, mu, beta)
             test_loss += loss.item()
             
             # Sauvegarde d'exemples de données reconstituées avec les données d'origine
@@ -153,31 +107,19 @@ def test_vae(epoch,beta):
     
 #%% Instanciation du VAE
 
-vae = VAE(D_in, D_enc, D_z, D_dec, D_out)
+vae = bernoulli.VAE_BERNOULLI(D_in, D_enc, D_z, D_dec, D_out)
 optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
 
 #%% Training loop
-beta = 4 # warm up coefficient 
+beta = 2 # warm up coefficient 
 num_epoch = 50
 # Itération du modèle sur 50 epoches
 for epoch in range(num_epoch):
     #beta += 1/num_epoch
     train_vae(epoch,beta)
     test_vae(epoch,beta)
-    
-    # Sauvegarde d'exemples de données générées à partir de l'espace latent
-    with torch.no_grad():
-        #sample = torch.randn(64, D_z)
-        Nd = 8
-        sample_x, sample_y = np.meshgrid(4*np.linspace(0,1,Nd)-2,4*np.linspace(0,1,Nd)-2)
-        sample_x = sample_x.reshape(Nd**2,1)
-        sample_y = sample_y.reshape(Nd**2,1)
-        sample = np.concatenate((sample_x,sample_y),axis=1)
-        sample = torch.from_numpy(sample).type(torch.float)
-        sample = vae.decoder(sample)
-        save_image(sample.view(Nd**2, 1, 28, 28), 
-'results/sample_' + str(epoch) + '.png')
 
 #%% Saving model
         
-torch.save(vae.state_dict(), saving_dir + 'VAE_GAUSSIAN_2')        
+torch.save(vae.state_dict(), saving_dir + 'VAE_BERNOULLI_2_BETA_2')        
+

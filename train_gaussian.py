@@ -1,26 +1,29 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec 14 11:06:47 2018
+Created on Tue Nov 27 19:34:36 2018
 
 @author: theophile
+
+30/11 : Code du VAE en pytorch, s'execute sans erreur mais ne semble pas fonctionner 
+        correctement (loss converge vers -10 ?)
+        En plus l'image reconstituée est toujours identique (une sorte de 9 très floue)
 """
 import os
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader 
 from torchvision.utils import save_image
 
+from src import vae_gaussian as gaussian
+
 #%% Loading data
 '''
 Télechargement du dataset MNIST avec transformation des fichiers en Tensor et
-normalisation (je ne sais pas vraiment ce que fait la normalisation)
+binarisation des images
 Les objets DataLoader permettent d'organiser les fichiers en batch et de pouvoir
 y accéder facilement pour l'entraînement
-Pour l'instant, le test_dataset n'est pas utilisé
 '''
 batch_size = 512
 data_dir = 'data'
@@ -53,54 +56,7 @@ D_out : dimension d'une donnée en sortie (= D_in)
 D_z : dimension de l'epace latent
 """
 N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 512, 2, 512, 784
-
-
-class VAE(nn.Module):
-    def __init__(self, D_in, D_enc, D_z, D_dec, D_out):
-        super(VAE,self).__init__()
-        self.linearEnc = nn.Linear(D_in, D_enc)
-        self.linearMu = nn.Linear(D_enc, D_z)
-        self.linearDec = nn.Linear(D_z, D_dec)
-        self.linearOut = nn.Linear(D_dec, D_out)
-        self.batchNorm = nn.BatchNorm1d(D_enc)
-        
-    def forward(self,x):
-        mu = self.encoder(x)
-        z_sample = self.reparametrize(mu)
-        x_approx = self.decoder(z_sample)
-        
-        return x_approx, mu
     
-    def encoder(self,x):
-        
-        h_norm = self.batchNorm(self.linearEnc(x))
-        h_relu = F.relu(h_norm)
-        mu = F.sigmoid(self.linearMu(h_relu))
-        
-        return mu
-    
-    def reparametrize(self, mu):
-        
-        eps = torch.rand_like(mu, requires_grad = True)
-        
-        return F.sigmoid(torch.log(eps + 1e-20) - torch.log(1 - eps + 1e-20) + torch.log(mu + 1e-20) 
-                         - torch.log(1 - mu + 1e-20))
-    
-    def decoder(self, z_sample):
-        
-        h_relu = F.relu(self.linearDec(z_sample))
-        h_out = F.sigmoid(self.linearOut(h_relu))
-        
-        return h_out 
-
-def vae_loss(x, x_sample, mu, beta):
-    
-    p = 0.5
-    recons_loss = nn.BCELoss(reduction='sum')
-    KL_div = torch.mul(mu, torch.log(mu + 1e-20) - np.log(p)) + torch.mul(1 - mu, torch.log(1 - mu + 1e-20) - np.log(1 - p))
-
-    return recons_loss(x_sample, x) + beta*torch.sum(KL_div)
-
 def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
@@ -108,8 +64,8 @@ def train_vae(epoch,beta):
         optimizer.zero_grad()
         data = data.reshape((-1,784))
         
-        x_approx, mu = vae(data)
-        loss = vae_loss(data, x_approx, mu, beta)
+        x_approx, mu, logvar = vae(data)
+        loss = gaussian.vae_loss(data, x_approx, mu, logvar, beta)
         train_loss += loss.item()
         loss.backward()
         optimizer.step()
@@ -132,8 +88,8 @@ def test_vae(epoch,beta):
             optimizer.zero_grad()
             data = data.reshape((-1,784))
             
-            x_approx, mu = vae(data)
-            loss = vae_loss(x_approx, data, mu, beta)
+            x_approx, mu, logvar = vae(data)
+            loss = gaussian.vae_loss(x_approx, data, mu, logvar, beta)
             test_loss += loss.item()
             
             # Sauvegarde d'exemples de données reconstituées avec les données d'origine
@@ -151,31 +107,31 @@ def test_vae(epoch,beta):
     
 #%% Instanciation du VAE
 
-vae = VAE(D_in, D_enc, D_z, D_dec, D_out)
+vae = gaussian.VAE_GAUSSIAN(D_in, D_enc, D_z, D_dec, D_out)
 optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
 
 #%% Training loop
-beta = 0 # warm up coefficient 
+beta = 2 # warm up coefficient 
 num_epoch = 50
 # Itération du modèle sur 50 epoches
 for epoch in range(num_epoch):
-    beta += 1/num_epoch
+    #beta += 1/num_epoch
     train_vae(epoch,beta)
     test_vae(epoch,beta)
     
     # Sauvegarde d'exemples de données générées à partir de l'espace latent
-#    with torch.no_grad():
-#        Nd = 8
-#        sample_x, sample_y = np.meshgrid(np.linspace(0,1,Nd),np.linspace(0,1,Nd))
-#        sample_x = sample_x.reshape(Nd**2,1)
-#        sample_y = sample_y.reshape(Nd**2,1)
-#        sample = np.concatenate((sample_x,sample_y),axis=1)
-#        sample = torch.from_numpy(sample).type(torch.float)
-#        sample = vae.decoder(sample)
-#        save_image(sample.view(Nd**2, 1, 28, 28), 
-#'results/sample_' + str(epoch) + '.png')
+    with torch.no_grad():
+        #sample = torch.randn(64, D_z)
+        Nd = 8
+        sample_x, sample_y = np.meshgrid(4*np.linspace(0,1,Nd)-2,4*np.linspace(0,1,Nd)-2)
+        sample_x = sample_x.reshape(Nd**2,1)
+        sample_y = sample_y.reshape(Nd**2,1)
+        sample = np.concatenate((sample_x,sample_y),axis=1)
+        sample = torch.from_numpy(sample).type(torch.float)
+        sample = vae.decoder(sample)
+        save_image(sample.view(Nd**2, 1, 28, 28), 
+'results/sample_' + str(epoch) + '.png')
 
 #%% Saving model
         
-torch.save(vae.state_dict(), saving_dir + 'VAE_BERNOULLI_2')        
-
+torch.save(vae.state_dict(), saving_dir + 'VAE_GAUSSIAN_2_BETA_2')        
