@@ -15,9 +15,9 @@ from src import vae_gaussian as gaussian
 from src import vae_bernoulli as bernoulli
    
 #%% Load vae, you can choose between gaussain and bernoulli models
-D_in, D_enc, D_z, D_dec, D_out = 784, 512, 2, 512, 784 # Change D_z depending on dimensions of latent space
+D_in, D_enc, D_z, D_dec, D_out = 784, 512, 8, 512, 784 # Change D_z depending on dimensions of latent space
 vae = bernoulli.VAE_BERNOULLI(D_in, D_enc, D_z, D_dec, D_out); # change 'gaussian' to 'bernoulli' to change the model
-vae.load_state_dict(torch.load('models/VAE_BERNOULLI_2_BETA_4')) # idem 
+vae.load_state_dict(torch.load('models/VAE_BERNOULLI_8_BETA_4')) # idem 
 vae.eval()
 
 #%% Sampling from latent space
@@ -34,7 +34,7 @@ x = y.reshape(28,28)
 plt.figure()
 plt.imshow(x, cmap='gray')
 
-#%% Plot latent space
+#%% Plot 2D latent space
 data_pts = 1000
 batch_size = 1
 data_dir = 'data'
@@ -50,8 +50,8 @@ c = np.zeros((1, data_pts))
 labels = ['0','1','2','3','4','5','6','7','8','9']
 
 for batch_idx, (data, target) in enumerate(test_dataset):
-    #mu,_ = vae.encoder(data.reshape((-1,784))) # Decomment if you use gaussian model
-    mu = vae.encoder(data.reshape((-1,784))) # Decomment if you use bernoulli model
+    mu,_ = vae.encoder(data.reshape((-1,784))) # Decomment if you use gaussian model
+    #mu = vae.encoder(data.reshape((-1,784))) # Decomment if you use bernoulli model
     x[0][batch_idx] = mu.detach().numpy()[0][0]
     y[0][batch_idx] = mu.detach().numpy()[0][1]
     c[0][batch_idx] = target.numpy()
@@ -59,4 +59,34 @@ for batch_idx, (data, target) in enumerate(test_dataset):
         break
 plt.figure()
 plt.scatter(x,y,c=c)
+cb = plt.colorbar()
+
+#%% Plot ND latent space in 2D using PCA
+data_pts = 1000
+batch_size = 1
+k = 2
+data_dir = 'data'
+test_dataset = datasets.MNIST(data_dir, train=False, download=True,
+                    transform=transforms.Compose([transforms.ToTensor(),
+                    lambda x: x > 0, # binarisation de l'image
+                    lambda x: x.float()]))
+
+test_loader = DataLoader(test_dataset,batch_size=batch_size, shuffle=True)
+latent_space = np.zeros((D_z, data_pts));
+label = np.zeros((1,data_pts))
+for batch_idx, (data,target) in enumerate(test_dataset):
+    #mu,_ = vae.encoder(data.reshape((-1,784)))
+    mu = vae.encoder(data.reshape((-1,784)))
+    latent_space[:,batch_idx] = mu.detach().numpy()
+    label[0,batch_idx] = target
+    if batch_idx >= data_pts - 1:
+        break
+LS = torch.from_numpy(latent_space)
+LS_mean = torch.mean(LS,0)
+LS = LS - LS_mean.expand_as(LS)
+U,S,V = torch.svd(LS)
+C = torch.mm(torch.t(LS),U[:,:k])
+
+plt.figure()
+plt.scatter(C[:,0].numpy(),C[:,1].numpy(),c=label[0])
 cb = plt.colorbar()
