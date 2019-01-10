@@ -55,7 +55,7 @@ H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respec
 D_out : dimension d'une donnée en sortie (= D_in)
 D_z : dimension de l'epace latent
 """
-N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 512, 2, 512, 784
+N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 800, 10, 800, 784
     
 def train_vae(epoch,beta):
     train_loss = 0
@@ -108,10 +108,10 @@ def test_vae(epoch,beta):
 #%% Instanciation du VAE
 
 vae = gaussian.VAE_GAUSSIAN(D_in, D_enc, D_z, D_dec, D_out)
-optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
+optimizer = torch.optim.Adam(vae.parameters(), 1e-5)
 
 #%% Training loop
-beta = 2 # warm up coefficient 
+beta = 4 # warm up coefficient 
 num_epoch = 50
 # Itération du modèle sur 50 epoches
 for epoch in range(num_epoch):
