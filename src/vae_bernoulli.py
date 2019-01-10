@@ -9,7 +9,6 @@ Created on Fri Jan  4 11:20:07 2019
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 
 
 class VAE_BERNOULLI(nn.Module):
@@ -17,31 +16,31 @@ class VAE_BERNOULLI(nn.Module):
         super(VAE_BERNOULLI,self).__init__()
         self.linearEnc = nn.Linear(D_in, D_enc)
         self.linearMu = nn.Linear(D_enc, D_z)
+        self.linearVar = nn.Linear(D_enc, D_z)
         self.linearDec = nn.Linear(D_z, D_dec)
         self.linearOut = nn.Linear(D_dec, D_out)
-        self.batchNorm = nn.BatchNorm1d(D_enc)
         
     def forward(self,x):
-        mu = self.encoder(x)
-        z_sample = self.reparametrize(mu)
+        mu, logvar = self.encoder(x)
+        z_sample = self.reparametrize(mu, logvar)
         x_approx = self.decoder(z_sample)
         
-        return x_approx, mu
+        return x_approx, mu, logvar
     
     def encoder(self,x):
         
-        h_norm = self.batchNorm(self.linearEnc(x))
-        h_relu = F.relu(h_norm)
-        mu = F.sigmoid(self.linearMu(h_relu))
+        h_relu = F.relu(self.linearEnc(x))
+        mu = self.linearMu(h_relu)
+        var = self.linearVar(h_relu)
         
-        return mu
+        return mu, var
     
-    def reparametrize(self, mu):
+    def reparametrize(self, mu, logvar):
         
-        eps = torch.rand_like(mu, requires_grad = True)
+        std = torch.exp(0.5*logvar)
+        eps = torch.randn_like(std, requires_grad = True)
         
-        return F.sigmoid(torch.log(eps + 1e-20) - torch.log(1 - eps + 1e-20) + torch.log(mu + 1e-20) 
-                         - torch.log(1 - mu + 1e-20))
+        return eps.mul(std).add_(mu)
     
     def decoder(self, z_sample):
         
@@ -50,10 +49,9 @@ class VAE_BERNOULLI(nn.Module):
         
         return h_out 
     
-def vae_loss(x, x_sample, mu, beta):
+def vae_loss(x, x_sample, mu, logvar, beta):
     
-    p = 0.5
     recons_loss = nn.BCELoss(reduction='sum')
-    KL_div = torch.mul(mu, torch.log(mu + 1e-20) - np.log(p)) + torch.mul(1 - mu, torch.log(1 - mu + 1e-20) - np.log(1 - p))
-
+    KL_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    
     return recons_loss(x_sample, x) + beta*torch.sum(KL_div)

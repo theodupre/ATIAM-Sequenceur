@@ -64,8 +64,8 @@ def train_vae(epoch,beta):
         optimizer.zero_grad()
         data = data.reshape((-1,784))
         
-        x_approx, mu, logvar = vae(data)
-        loss = gaussian.vae_loss(data, x_approx, mu, logvar, beta)
+        out_mu, out_var, latent_mu, latent_logvar = vae(data)
+        loss = gaussian.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
         train_loss += loss.item()
         loss.backward()
         optimizer.step()
@@ -79,7 +79,7 @@ def train_vae(epoch,beta):
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss*N / len(train_loader.dataset)))
         
-        
+                
 def test_vae(epoch,beta):
     test_loss = 0
     vae.eval()
@@ -88,18 +88,18 @@ def test_vae(epoch,beta):
             optimizer.zero_grad()
             data = data.reshape((-1,784))
             
-            x_approx, mu, logvar = vae(data)
-            loss = gaussian.vae_loss(x_approx, data, mu, logvar, beta)
+            out_mu, out_var, latent_mu, latent_logvar = vae(data)
+            loss = gaussian.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
             test_loss += loss.item()
             
             # Sauvegarde d'exemples de données reconstituées avec les données d'origine
-            if batch_idx == 0:
-                n = min(data.size(0), 8)
-
-                comparison = torch.cat([data.view(N, 1, 28, 28)[:n],
-                                      x_approx.view(N, 1, 28, 28)[:n]])
-                save_image(comparison.cpu(),
-                           'results/reconstruction_' + str(epoch) + '.png', nrow=n)
+#            if batch_idx == 0:
+#                n = min(data.size(0), 8)
+#
+#                comparison = torch.cat([data.view(N, 1, 28, 28)[:n],
+#                                      x_approx.view(N, 1, 28, 28)[:n]])
+#                save_image(comparison.cpu(),
+#                           'results/reconstruction_' + str(epoch) + '.png', nrow=n)
 
     test_loss /= len(test_loader.dataset)/N
     print('====> Test set loss: {:.4f}'.format(test_loss))
@@ -120,17 +120,17 @@ for epoch in range(num_epoch):
     test_vae(epoch,beta)
     
     # Sauvegarde d'exemples de données générées à partir de l'espace latent
-    with torch.no_grad():
-        #sample = torch.randn(64, D_z)
-        Nd = 8
-        sample_x, sample_y = np.meshgrid(4*np.linspace(0,1,Nd)-2,4*np.linspace(0,1,Nd)-2)
-        sample_x = sample_x.reshape(Nd**2,1)
-        sample_y = sample_y.reshape(Nd**2,1)
-        sample = np.concatenate((sample_x,sample_y),axis=1)
-        sample = torch.from_numpy(sample).type(torch.float)
-        sample = vae.decoder(sample)
-        save_image(sample.view(Nd**2, 1, 28, 28), 
-'results/sample_' + str(epoch) + '.png')
+#    with torch.no_grad():
+#        #sample = torch.randn(64, D_z)
+#        Nd = 8
+#        sample_x, sample_y = np.meshgrid(4*np.linspace(0,1,Nd)-2,4*np.linspace(0,1,Nd)-2)
+#        sample_x = sample_x.reshape(Nd**2,1)
+#        sample_y = sample_y.reshape(Nd**2,1)
+#        sample = np.concatenate((sample_x,sample_y),axis=1)
+#        sample = torch.from_numpy(sample).type(torch.float)
+#        sample = vae.decoder(sample)
+#        save_image(sample.view(Nd**2, 1, 28, 28), 
+#'results/sample_' + str(epoch) + '.png')
 
 #%% Saving model
         

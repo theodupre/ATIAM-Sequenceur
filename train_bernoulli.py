@@ -6,13 +6,16 @@ Created on Fri Dec 14 11:06:47 2018
 @author: theophile
 """
 import os
+import numpy as np
 import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader 
 from torchvision.utils import save_image
+from torch.utils.data.sampler import SubsetRandomSampler
 
 from src import vae_bernoulli as bernoulli
-from src import DatasetLoader as data
+from src import vae_gaussian as gaussian
+from src import DatasetLoader as dataset
 
 #%% Loading data
 '''
@@ -24,8 +27,25 @@ Pour l'instant, le test_dataset n'est pas utilisé
 '''
 batch_size = 8
 data_dir = 'data/dataset_sequence/'
-train_dataset = data.DatasetLoader(data_dir,transform=True)
-test_dataset = train_dataset
+dataset = dataset.DatasetLoader(data_dir,transform=True)
+
+test_split = .2
+shuffle_dataset = True
+random_seed= 42
+# Creating data indices for training and validation splits:
+dataset_size = len(dataset)
+indices = list(range(dataset_size))
+split = int(np.floor(test_split * dataset_size))
+train_indices, test_indices = indices[split:], indices[:split]
+
+# Creating PT data samplers and loaders:
+train_sampler = SubsetRandomSampler(train_indices)
+test_sampler = SubsetRandomSampler(test_indices)
+
+train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, 
+                                           sampler=train_sampler)
+test_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
+                                                sampler=test_sampler)
 
 #train_dataset = datasets.MNIST(data_dir, train=True, download=True, 
 #                    transform=transforms.Compose([transforms.ToTensor(),
@@ -35,8 +55,6 @@ test_dataset = train_dataset
 #                    transform=transforms.Compose([transforms.ToTensor(),
 #                    lambda x: x > 0, # binarisation de l'image
 #                    lambda x: x.float()]))
-train_loader = DataLoader(train_dataset,batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_dataset,batch_size=batch_size, shuffle=True)
 
 # Creation d'un dossier results/ pour stocker les resultats et d'un dossier models/ pour sauvegarder les paramètres
 results_dir = 'results/'
@@ -55,17 +73,17 @@ H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respec
 D_out : dimension d'une donnée en sortie (= D_in)
 D_z : dimension de l'epace latent
 """
-N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 1024, 512, 10, 512, 1024
+N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 512, 800, 5, 800, 512
 
-
+mean_train_loss = []
 def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
     for batch_idx, data in enumerate(train_loader):
         optimizer.zero_grad()
-        data = data.reshape((-1,1024))
-        x_approx, mu = vae(data)
-        loss = bernoulli.vae_loss(data, x_approx, mu, beta)
+        data = data.reshape((-1,512))
+        x_approx, mu, var = vae(data)
+        loss = bernoulli.vae_loss(data, x_approx, mu, var, beta)
         train_loss += loss.item()
         loss.backward()
         optimizer.step()
@@ -78,31 +96,32 @@ def train_vae(epoch,beta):
             
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss*N / len(train_loader.dataset)))
+    mean_train_loss.append(train_loss*N / len(train_loader.dataset))
         
-        
+mean_test_loss = []        
 def test_vae(epoch,beta):
     test_loss = 0
     vae.eval()
     with torch.no_grad():
         for batch_idx, (data) in enumerate(test_loader):
             optimizer.zero_grad()
-            data = data.reshape((-1,1024))
+            data = data.reshape((-1,512))
             
-            x_approx, mu = vae(data)
-            loss = bernoulli.vae_loss(x_approx, data, mu, beta)
+            x_approx, mu, var = vae(data)
+            loss = bernoulli.vae_loss(x_approx, data, mu, var, beta)
             test_loss += loss.item()
             
             # Sauvegarde d'exemples de données reconstituées avec les données d'origine
             if batch_idx == 0:
                 n = min(data.size(0), 8)
-
-                comparison = torch.cat([data.view(N, 1, 8, 128)[:n],
-                                      x_approx.view(N, 1, 8, 128)[:n]])
+                comparison = torch.cat([data.view(N, 1, 8, 64)[:n],
+                                      x_approx.view(N, 1, 8, 64)[:n]])
                 save_image(comparison.cpu(),
                            'results/reconstruction_' + str(epoch) + '.png', nrow=n)
 
     test_loss /= len(test_loader.dataset)/N
     print('====> Test set loss: {:.4f}'.format(test_loss))
+    mean_test_loss.append(test_loss)
             
     
 #%% Instanciation du VAE
@@ -115,11 +134,18 @@ beta = 4 # warm up coefficient
 num_epoch = 200
 # Itération du modèle sur 50 epoches
 for epoch in range(num_epoch):
-    #beta += 1/num_epoch
+    
     train_vae(epoch,beta)
     test_vae(epoch,beta)
 
 #%% Saving model
-        
-torch.save(vae.state_dict(), saving_dir + 'VAE_BERNOULLI_10_BETA_4')        
+import pickle
+
+torch.save(vae.state_dict(), saving_dir + 'VAE_BERNOULLI_5_BETA_4_hid800')   
+loss = {"train_loss":mean_train_loss, "test_loss":mean_test_loss}  
+
+with open(saving_dir + 'VAE_BERNOULLI_5_BETA_4_hid800_loss.pickle', 'wb') as handle:
+    pickle.dump(loss, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    
+
 

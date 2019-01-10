@@ -5,7 +5,6 @@ Created on Fri Jan  4 11:39:12 2019
 
 @author: theophile
 """
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,14 +16,15 @@ class VAE_GAUSSIAN(nn.Module):
         self.linearMu = nn.Linear(D_enc, D_z)
         self.linearVar = nn.Linear(D_enc, D_z)
         self.linearDec = nn.Linear(D_z, D_dec)
-        self.linearOut = nn.Linear(D_dec, D_out)
+        self.linearOutMu = nn.Linear(D_dec, D_out)
+        self.linearOutVar = nn.Linear(D_dec, D_out)
         
     def forward(self,x):
-        mu, logvar = self.encoder(x)
-        z_sample = self.reparametrize(mu, logvar)
-        x_approx = self.decoder(z_sample)
+        latent_mu, latent_logvar = self.encoder(x)
+        z_sample = self.reparametrize(latent_mu, latent_logvar)
+        out_mu, out_var = self.decoder(z_sample)
         
-        return x_approx, mu, logvar
+        return out_mu, out_var, latent_mu, latent_logvar
     
     def encoder(self,x):
         
@@ -44,13 +44,14 @@ class VAE_GAUSSIAN(nn.Module):
     def decoder(self, z_sample):
         
         h_relu = F.relu(self.linearDec(z_sample))
-        h_out = F.sigmoid(self.linearOut(h_relu))
+        h_out_mu = self.linearOutMu(h_relu)
+        h_out_var = self.linearOutVar(h_relu)
         
-        return h_out 
+        return h_out_mu, h_out_var 
    
-def vae_loss(x, x_sample, mu, logvar, beta):
+def vae_loss(x, out_mu, out_var, latent_mu, latent_var, beta):
     
-    recons_loss = nn.BCELoss(reduction='sum')
-    KL_div = 0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    recons_loss = -torch.sum(0.5*torch.log(2*3.14*out_var) + (x - out_mu)**2/out_var)
+    KL_div = -0.5 * torch.sum(1 + latent_var - latent_mu.pow(2) - latent_var.exp())
 
-    return recons_loss(x_sample, x) + beta*KL_div
+    return recons_loss + beta*KL_div
