@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov 27 19:34:36 2018
+Created on Mon Jan 14 11:12:19 2019
 
 @author: theophile
-
-30/11 : Code du VAE en pytorch, s'execute sans erreur mais ne semble pas fonctionner 
-        correctement (loss converge vers -10 ?)
-        En plus l'image reconstituée est toujours identique (une sorte de 9 très floue)
 """
+
 import os
 import numpy as np
 import torch
@@ -16,8 +13,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader 
 from torchvision.utils import save_image
 
-from src import vae_gaussian as gaussian
-
+from src import vae_audio as audio
 #%% Loading data
 '''
 Télechargement du dataset MNIST avec transformation des fichiers en Tensor et
@@ -55,17 +51,34 @@ H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respec
 D_out : dimension d'une donnée en sortie (= D_in)
 D_z : dimension de l'epace latent
 """
-N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 800, 10, 800, 784
+#### Cyran's parameters of the death
+# I'll make the code compatible with this fuckin shit, I'll send you a similar code in a while
+conv1 = [1, 8, (11,5), (3,2), (5,2)]
+conv2 = [8, 16, (11,5), (3,2), (5,2)]
+conv3 = [16, 32, (11,5), (3,2), (5,2)]
+conv = [conv1, conv2, conv3]
+
+#The MLP hidden Layers : [[in_dim,hlayer1_dim], [hlayer1_dim,hlayer2_dim], ...]
+enc_h_dims = [[229376, 1024], [1024, 512]]
+dec_h_dims = [[32, 1024], [1024, 229376]]
+#The Deconv Layers: [in_channels, out_channels, kernel_size, stride, padding, output_padding]
+deconv1 = [32, 16, (11,5), (3,2), (5,2), (2,0)]
+deconv2 = [16, 8, (11,8), (3,2), (5,2), (2,0)]
+deconv3 = [8, 1, (11,4), (3,2), (5,2), (1,0)]
+deconv = [deconv1, deconv2, deconv3]
+
+
+N, input_size, D_z = batch_size, (28,28), 32
     
 def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
     for batch_idx, (data, _) in enumerate(train_loader):
         optimizer.zero_grad()
-        data = data.reshape((-1,784))
+        #data = data.reshape((-1,784))
         
         out_mu, out_var, latent_mu, latent_logvar = vae(data)
-        loss = gaussian.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
+        loss = audio.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
         train_loss += loss.item()
         loss.backward()
         optimizer.step()
@@ -88,20 +101,20 @@ def test_vae(epoch,beta):
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(test_loader):
             optimizer.zero_grad()
-            data = data.reshape((-1,784))
+            #data = data.reshape((-1,784))
             
             out_mu, out_var, latent_mu, latent_logvar = vae(data)
-            loss = gaussian.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
+            loss = audio.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
             test_loss += loss.item()
             
             # Sauvegarde d'exemples de données reconstituées avec les données d'origine
-            if batch_idx == 0:
-                n = min(data.size(0), 8)
-
-                comparison = torch.cat([data.view(N, 1, 28, 28)[:n],
-                                      out_mu.view(N, 1, 28, 28)[:n]])
-                save_image(comparison.cpu(),
-                           'results/reconstruction_' + str(epoch) + '.png', nrow=n)
+#            if batch_idx == 0:
+#                n = min(data.size(0), 8)
+#
+#                comparison = torch.cat([data.view(N, 1, 28, 28)[:n],
+#                                      out_mu.view(N, 1, 28, 28)[:n]])
+#                save_image(comparison.cpu(),
+#                           'results/reconstruction_' + str(epoch) + '.png', nrow=n)
                 
     test_loss /= len(test_loader.dataset)/N
     print('====> Test set loss: {:.4f}'.format(test_loss))
@@ -112,8 +125,8 @@ def test_vae(epoch,beta):
     
 #%% Instanciation du VAE
 
-vae = gaussian.VAE_GAUSSIAN(D_in, D_enc, D_z, D_dec, D_out)
-optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
+vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims)
+optimizer = torch.optim.Adam(vae.parameters(), 1e-4)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
 #%% Training loop

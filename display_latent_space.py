@@ -17,9 +17,9 @@ from src import vae_bernoulli as bernoulli
 from src import DatasetLoader as data
    
 #%% Load vae, you can choose between gaussain and bernoulli models
-D_in, D_enc, D_z, D_dec, D_out = 1024, 512, 5, 512, 1024 # Change D_z depending on dimensions of latent space
+D_in, D_enc, D_z, D_dec, D_out = 784, 800, 5, 800, 784 # Change D_z depending on dimensions of latent space
 vae = gaussian.VAE_GAUSSIAN(D_in, D_enc, D_z, D_dec, D_out); # change 'gaussian' to 'bernoulli' to change the model
-vae.load_state_dict(torch.load('models/sequence/VAE_BERNOULLI_5_BETA_4')) # idem 
+vae.load_state_dict(torch.load('models/VAE_GAUSSIAN_10_BETA_4_hid800')) # idem 
 vae.eval()
 
 #%% Sampling from latent space
@@ -99,15 +99,15 @@ cb = plt.colorbar()
 
 #%% PLot loss curves
 
-saving_dir = 'models/sequence/'
-pickle_in = open(saving_dir + 'VAE_BERNOULLI_5_BETA_4_loss.pickle',"rb")
+saving_dir = 'models/'
+pickle_in = open(saving_dir + 'VAE_GAUSSIAN_10_BETA_4_hid800_loss.pickle',"rb")
 loss_beta_5 = pickle.load(pickle_in)
-pickle_in = open(saving_dir + 'VAE_BERNOULLI_10_BETA_4_loss.pickle',"rb")
-loss_beta_10 = pickle.load(pickle_in)
-pickle_in = open(saving_dir + 'VAE_BERNOULLI_2_BETA_4_loss.pickle',"rb")
-loss_beta_2 = pickle.load(pickle_in)
-pickle_in = open(saving_dir + 'VAE_BERNOULLI_1_BETA_4_loss.pickle',"rb")
-loss_beta_1 = pickle.load(pickle_in)
+#pickle_in = open(saving_dir + 'VAE_BERNOULLI_10_BETA_4_loss.pickle',"rb")
+#loss_beta_10 = pickle.load(pickle_in)
+#pickle_in = open(saving_dir + 'VAE_BERNOULLI_2_BETA_4_loss.pickle',"rb")
+#loss_beta_2 = pickle.load(pickle_in)
+#pickle_in = open(saving_dir + 'VAE_BERNOULLI_1_BETA_4_loss.pickle',"rb")
+#loss_beta_1 = pickle.load(pickle_in)
 
 x = np.linspace(1,200,200)
-plt.plot(x,loss_beta_1['train_loss'],x,loss_beta_1['test_loss'],x,loss_beta_2['train_loss'],x,loss_beta_2['test_loss'],x,loss_beta_10['train_loss'],x,loss_beta_10['test_loss'],x,loss_beta_5['train_loss'],x,loss_beta_5['test_loss'])
+plt.plot(x,loss_beta_5['train_loss'],x,loss_beta_5['test_loss']) #,x,loss_beta_2['train_loss'],x,loss_beta_2['test_loss'],x,loss_beta_10['train_loss'],x,loss_beta_10['test_loss'],x,loss_beta_5['train_loss'],x,loss_beta_5['test_loss'])

@@ -8,6 +8,7 @@ Created on Fri Jan  4 11:39:12 2019
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 class VAE_GAUSSIAN(nn.Module):
     def __init__(self, D_in, D_enc, D_z, D_dec, D_out):
@@ -48,10 +49,10 @@ class VAE_GAUSSIAN(nn.Module):
         logvar = self.linearOutVar(h_relu)
         
         return mu, logvar 
-   
+
 def vae_loss(x, out_mu, out_logvar, latent_mu, latent_logvar, beta):
     
-    recons_loss = -torch.sum(0.5*torch.log(2*3.14*out_logvar.exp()) + (x - out_mu)**2/out_logvar.exp())
+    recons_loss = torch.sum(0.5*1.837369980 + 0.5*out_logvar + (x - out_mu)**2/(2*out_logvar.exp()))
     KL_div = -0.5 * torch.sum(1 + latent_logvar - latent_mu.pow(2) - latent_logvar.exp())
 
     return recons_loss + beta*KL_div
