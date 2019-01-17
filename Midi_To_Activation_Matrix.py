@@ -10,6 +10,7 @@ import numpy as np
 import os
 from music21 import converter
 import matplotlib.pyplot as plt
+from scipy.misc import imsave
 
 #%% Function Definition
 
@@ -91,17 +92,24 @@ def importMIDI(path):
 root = r'C:\Users\dell\Documents\ATIAM\Info\ATIAM-Sequenceur\Dataset_Drum_Groove_Midi'
 list_dir = os.listdir(root) #List of files in the directory 
 
+track_path = os.path.join(root,'HOUSE1.mid')
+piece,activation_matrix = importMIDI(track_path)
+            
+plt.figure(1, figsize=[15,5])
+plt.imshow(np.asarray(activation_matrix),origin = 'lower')
+plt.set_cmap('gray')
+plt.savefig("test.eps", format="eps")
 
-for data_file in list_dir:
-    if os.path.splitext(data_file)[1] == '.mid' or os.path.splitext(data_file)[1] == '.MID' : #Verification files in the floder are midi files
+
+
+
+#for data_file in list_dir:
+#    if os.path.splitext(data_file)[1] == '.mid' or os.path.splitext(data_file)[1] == '.MID' : #Verification files in the floder are midi files
+#            
+#            track_path = os.path.join(root,data_file)
+#            piece,activation_matrix = importMIDI(track_path)
+#            
+#            #Saving the activation_matrix numpy array
+#            save_path = os.path.join('Dataset_Drum_Groove_Pattern',os.path.splitext(data_file)[0])
+#            np.save(save_path,activation_matrix)
             
-            track_path = os.path.join(root,data_file)
-            piece,activation_matrix = importMIDI(track_path)
-            
-            #Saving the activation_matrix numpy array
-            save_path = os.path.join('Dataset_Drum_Groove_Pattern',os.path.splitext(data_file)[0])
-            np.save(save_path,activation_matrix)
-            
-#            plt.figure(1, figsize=[15,5])
-#            plt.imshow(np.asarray(activation_matrix))
-#            plt.colorbar()
