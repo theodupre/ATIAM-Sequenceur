@@ -62,9 +62,9 @@ conv = [conv1, conv2, conv3]
 enc_h_dims = [[10240, 1024], [1024, 512]]
 dec_h_dims = [[128, 1024], [1024, 10240]]
 #The Deconv Layers: [in_channels, out_channels, kernel_size, stride, padding, output_padding]
-deconv1 = [32, 16, (11,6), (3,2), (5,2), (2,2), (0,0,0,0)]
-deconv2 = [16, 8, (12,5), (3,2), (5,2), (2,2), (0,0,0,0)]
-deconv3 = [8, 1, (12,5), (3,2), (5,2), (2,2), (0,0)]
+deconv1 = [32, 16, (11,5), (3,2), (5,2), (2,2), (0,1,0,0)]
+deconv2 = [16, 8, (11,5), (3,2), (5,2), (2,2), (0,0,1,0)]
+deconv3 = [8, 1, (11,5), (3,2), (5,2), (2,2), (0,0,1,0)]
 #deconv1 = [32, 16, (11,5), (3,2), (5,2), (2,2), (0,0)]
 #deconv2 = [16, 8, (11,8), (3,2), (5,2), (2,2), (0,0,0,0)]
 #deconv3 = [8, 1, (11,4), (3,2), (5,2), (2,2), (0,0)]
@@ -75,7 +75,7 @@ batch_size = 512
 N, input_size, D_z = batch_size, (410,157), 128
 input = torch.zeros(1,1,410,157)
 label = torch.zeros(1,8)
-vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).toDevice(device)
+vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).to(device)
 out,out1 = vae.forward(input, label)
 
 
@@ -86,8 +86,8 @@ def train_vae(epoch,beta):
     vae.train()
     for batch_idx, (data, label) in enumerate(train_loader):
         optimizer.zero_grad()
-        data = data.toDevice(device)
-        label = label.toDevice(device)
+        data = data.to(device)
+        label = label.to(device)
         
         out_mu, out_var, latent_mu, latent_logvar = vae(data, label)
         loss = audio.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
@@ -113,7 +113,7 @@ def test_vae(epoch,beta):
     with torch.no_grad():
         for batch_idx, (data, label) in enumerate(test_loader):
             optimizer.zero_grad()
-            data = data.toDevice(device)
+            data = data.to(device)
             
             out_mu, out_var, latent_mu, latent_logvar = vae(data, label)
             loss = audio.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)

@@ -16,7 +16,6 @@ class VAE_AUDIO(nn.Module):
     def __init__(self, input_size, convParams, encMlpParams, D_z, deconvParams, decMlpParams):
         super(VAE_AUDIO,self).__init__()
         self.conv = convNN(convParams)
-        self.pool_indices = []
         self.deconv = deconvNN(deconvParams)
         
         self.encMlp1 = nn.Linear(encMlpParams[0][0],encMlpParams[0][1])
@@ -26,10 +25,9 @@ class VAE_AUDIO(nn.Module):
         
         self.latentMu = nn.Linear(encMlpParams[1][1], D_z)
         self.latentVar = nn.Linear(encMlpParams[1][1], D_z)
-        self.outMu = nn.Linear(input_size[0]*input_size[1], input_size[0]*input_size[1])
-        self.outVar = nn.Linear(input_size[0]*input_size[1], input_size[0]*input_size[1])
-#        self.outMu = nn.Linear(10,10)
-#        self.outVar = nn.Linear(10,10)
+        self.outMu = nn.Linear(1,1)#input_size[0]*input_size[1], input_size[0]*input_size[1])
+        self.outVar = nn.Linear(1,1)#input_size[0]*input_size[1], input_size[0]*input_size[1])
+
     def forward(self,x, label):
         latent_mu, latent_logvar = self.encoder(x)
         z_sample = self.reparametrize(latent_mu, latent_logvar)
