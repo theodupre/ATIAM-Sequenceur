@@ -18,6 +18,17 @@ class DatasetLoader(Dataset):
         self.root_dir = root_dir
         self.transform = transform
         self.audio = audio
+        
+#        self.conditioning = {'0': torch.tensor([1,0,0,0,0,0,0,0]),
+#                      '1': torch.tensor([0,1,0,0,0,0,0,0]),
+#                      '2': torch.tensor([0,0,1,0,0,0,0,0]),
+#                      '3': torch.tensor([0,0,0,1,0,0,0,0]),
+#                      '4': torch.tensor([0,0,0,0,1,0,0,0]),
+#                      '5': torch.tensor([0,0,0,0,0,1,0,0]),
+#                      '6': torch.tensor([0,0,0,0,0,0,1,0]),
+#                      '7': torch.tensor([0,0,0,0,0,0,0,1])}
+#        print(conditioning)
+
 
     def __len__(self):
         
@@ -26,14 +37,23 @@ class DatasetLoader(Dataset):
     def __getitem__(self, idx):
         
         if self.audio:
+            conditioning = {'0': torch.tensor([1.,0.,0.,0.,0.,0.,0.,0.]),
+                      '1': torch.tensor([0,1,0,0,0,0,0,0]).float(),
+                      '2': torch.tensor([0,0,1,0,0,0,0,0]).float(),
+                      '3': torch.tensor([0,0,0,1,0,0,0,0]).float(),
+                      '4': torch.tensor([0,0,0,0,1,0,0,0]).float(),
+                      '5': torch.tensor([0,0,0,0,0,1,0,0]).float(),
+                      '6': torch.tensor([0,0,0,0,0,0,1,0]).float(),
+                      '7': torch.tensor([0,0,0,0,0,0,0,1]).float()}
             file = os.listdir(self.root_dir)[idx]
-            label = file[0]
-            sample = (np.load(self.root_dir + os.listdir(self.root_dir)[idx]), label)
+            num = file[0]
+            label = conditioning[num]
+            data = np.abs(np.load(self.root_dir + os.listdir(self.root_dir)[idx])).transpose().reshape((1,410,157))
+            data = torch.from_numpy(data).float()
+            sample = (data, label)
         else:
             sample = np.load(self.root_dir + os.listdir(self.root_dir)[idx])
 
-        if self.transform:
-            sample[0] = torch.from_numpy(sample[0]).float()
-        else:
+        if not self.audio:
             sample = torch.from_numpy(sample).float()
         return sample
