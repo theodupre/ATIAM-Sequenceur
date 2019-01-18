@@ -32,7 +32,7 @@ train_indices, test_indices = indices[split:], indices[:split]
 train_sampler = SubsetRandomSampler(train_indices)
 test_sampler = SubsetRandomSampler(test_indices)
 
-train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, 
+train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
                                            sampler=train_sampler)
 test_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
                                                 sampler=test_sampler)
@@ -48,12 +48,13 @@ if not os.path.exists(saving_dir):
 
 """
 N : taille d'un batch
-D_in : dimension d'entrée d'une donnée  
+D_in : dimension d'entrée d'une donnée
 H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respectivement
 D_out : dimension d'une donnée en sortie (= D_in)
 D_z : dimension de l'epace latent
 """
 device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+print(device)
 
 #### Cyran's parameters of the death
 # I'll make the code compatible with this fuckin shit, I'll send you a similar code in a while
@@ -80,34 +81,34 @@ N, input_size, D_z = batch_size, (410,157), 128
 #latent1, latent2,out,out1 = vae.forward(input, label)
 
 #%%
-    
+
 def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
     for batch_idx, (data, label) in enumerate(train_loader):
-        
+
         optimizer.zero_grad()
         data = data.to(device)
         label = label.to(device)
-        
+
         out_mu, out_var, latent_mu, latent_logvar = vae(data, label)
         loss = audio.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
         train_loss += loss.item()
         loss.backward()
         optimizer.step()
-        
+
         # Affichage de la loss tous les 100 batchs
-        if batch_idx % 10 == 0:
+        if batch_idx % 2 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
-            
+
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss*N / len(train_loader.dataset)))
     mean_train_loss.append(train_loss*N / len(train_loader.dataset))
     return train_loss
-        
-                
+
+
 def test_vae(epoch,beta):
     test_loss = 0
     vae.eval()
@@ -115,9 +116,8 @@ def test_vae(epoch,beta):
         for batch_idx, (data, label) in enumerate(test_loader):
             optimizer.zero_grad()
             data = data.to(device)
-            print(label.shape)
             label = label.to(device)
-            
+
             out_mu, out_var, latent_mu, latent_logvar = vae(data, label)
             loss = audio.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
             test_loss += loss.item()
@@ -125,10 +125,10 @@ def test_vae(epoch,beta):
     test_loss /= len(test_loader.dataset)/N
     print('====> Test set loss: {:.4f}'.format(test_loss))
     mean_test_loss.append(test_loss)
-    
+
     return test_loss
-            
-    
+
+
 #%% Instanciation du VAE
 #vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).to(device)
 
@@ -137,7 +137,7 @@ optimizer = torch.optim.Adam(vae.parameters(), 1e-4)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
 #%% Training loop
-beta = 4 # warm up coefficient 
+beta = 4 # warm up coefficient
 num_epoch = 500
 mean_train_loss = []
 mean_test_loss = []
@@ -147,11 +147,10 @@ for epoch in range(num_epoch):
     train_loss = train_vae(epoch,beta)
     _ = test_vae(epoch,beta)
     scheduler.step(train_loss)
-    
+
     if epoch % 10 == 0 and epoch != 0:
-        torch.save(vae.state_dict(), saving_dir + 'VAE_AUDIO_128_epoch' + str(epoch))  
-        loss = {"train_loss":mean_train_loss, "test_loss":mean_test_loss}  
+        torch.save(vae.state_dict(), saving_dir + 'VAE_AUDIO_128_epoch' + str(epoch))
+        loss = {"train_loss":mean_train_loss, "test_loss":mean_test_loss}
 
         with open(saving_dir + 'VAE_AUDIO_128_loss_epoch' + str(epoch) + '.pickle', 'wb') as handle:
-            pickle.dump(loss, handle, protocol=pickle.HIGHEST_PROTOCOL)    
-      
+            pickle.dump(loss, handle, protocol=pickle.HIGHEST_PROTOCOL)
