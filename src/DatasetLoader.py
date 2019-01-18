@@ -13,10 +13,11 @@ from  torch.utils.data import Dataset
 
 class DatasetLoader(Dataset):
 
-    def __init__(self, root_dir, transform=None):
+    def __init__(self, root_dir, transform=None, audio=False):
 
         self.root_dir = root_dir
         self.transform = transform
+        self.audio = audio
 
     def __len__(self):
         
@@ -24,9 +25,15 @@ class DatasetLoader(Dataset):
 
     def __getitem__(self, idx):
         
-        sample = np.load(self.root_dir + os.listdir(self.root_dir)[idx])
+        if self.audio:
+            file = os.listdir(self.root_dir)[idx]
+            label = file[0]
+            sample = (np.load(self.root_dir + os.listdir(self.root_dir)[idx]), label)
+        else:
+            sample = np.load(self.root_dir + os.listdir(self.root_dir)[idx])
 
         if self.transform:
-           # sample = self.transform(sample)
-             sample = torch.from_numpy(sample).float()
+            sample[0] = torch.from_numpy(sample[0]).float()
+        else:
+            sample = torch.from_numpy(sample).float()
         return sample

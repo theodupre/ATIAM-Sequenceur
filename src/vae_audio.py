@@ -25,8 +25,10 @@ class VAE_AUDIO(nn.Module):
         
         self.latentMu = nn.Linear(encMlpParams[1][1], D_z)
         self.latentVar = nn.Linear(encMlpParams[1][1], D_z)
-        self.outMu = nn.Linear(1,1)#input_size[0]*input_size[1], input_size[0]*input_size[1])
-        self.outVar = nn.Linear(1,1)#input_size[0]*input_size[1], input_size[0]*input_size[1])
+        self.outConvMu = nn.Conv2d(1,1,(11,5), padding=(5,2))
+        self.outConvVar = nn.Conv2d(1,1,(11,5), padding=(5,2))
+        
+        self.output_size = input_size[0]*input_size[1]
 
     def forward(self,x, label):
         latent_mu, latent_logvar = self.encoder(x)
@@ -59,10 +61,15 @@ class VAE_AUDIO(nn.Module):
         h_mlp = h_mlp.view(-1,32,16,20)
         print(h_mlp.shape)
         h_deconv = self.deconv(h_mlp)
-        h_deconv = h_deconv.view(-1,410*157)
-        print(h_deconv.shape)
-        out_mu = self.outMu(h_deconv)
-        out_var = self.outVar(h_deconv)
+#        h_deconv = h_deconv.view(-1,410*157)
+#        print(h_deconv.shape)
+#        out_mu = self.outMu(h_deconv)
+#        out_var = self.outVar(h_deconv)
+        out_mu = self.outConvMu(h_deconv)
+        out_var = self.outConvVar(h_deconv)
+        out_mu = out_mu.reshape((-1,self.output_size))
+        out_var = out_var.reshape((-1,self.output_size))
+        
         
         return out_mu, out_var
     

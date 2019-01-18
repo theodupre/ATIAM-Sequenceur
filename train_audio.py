@@ -9,9 +9,6 @@ Created on Mon Jan 14 11:12:19 2019
 import os
 import numpy as np
 import torch
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader 
-from torchvision.utils import save_image
 from torch.utils.data.sampler import SubsetRandomSampler
 
 from src import vae_audio as audio
@@ -19,7 +16,7 @@ from src import DatasetLoader as dataset
 #%% Loading data
 batch_size = 10
 data_dir = 'data/dataset_audio/'
-dataset = dataset.DatasetLoader(data_dir,transform=True)
+dataset = dataset.DatasetLoader(data_dir,transform=True, audio=True)
 
 test_split = .2
 shuffle_dataset = True
@@ -39,6 +36,12 @@ train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
 test_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
                                                 sampler=test_sampler)
 
+results_dir = 'results/'
+saving_dir = 'models/audio/'
+if not os.path.exists(results_dir):
+    os.makedirs(results_dir)
+if not os.path.exists(saving_dir):
+    os.makedirs(saving_dir)
 
 #%% Définition des modules du VAE : Encoder, Z_sampling, Decoder
 
@@ -65,19 +68,15 @@ dec_h_dims = [[128, 1024], [1024, 10240]]
 deconv1 = [32, 16, (11,5), (3,2), (5,2), (2,2), (0,1,0,0)]
 deconv2 = [16, 8, (11,5), (3,2), (5,2), (2,2), (0,0,1,0)]
 deconv3 = [8, 1, (11,5), (3,2), (5,2), (2,2), (0,0,1,0)]
-#deconv1 = [32, 16, (11,5), (3,2), (5,2), (2,2), (0,0)]
-#deconv2 = [16, 8, (11,8), (3,2), (5,2), (2,2), (0,0,0,0)]
-#deconv3 = [8, 1, (11,4), (3,2), (5,2), (2,2), (0,0)]
 deconv = [deconv1, deconv2, deconv3]
 
 batch_size = 512
 
 N, input_size, D_z = batch_size, (410,157), 128
-input = torch.zeros(1,1,410,157)
-label = torch.zeros(1,8)
-vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).to(device)
-out,out1 = vae.forward(input, label)
-
+#input = torch.zeros(1,1,410,157)
+#label = torch.zeros(1,8)
+#vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).to(device)
+#latent1, latent2,out,out1 = vae.forward(input, label)
 
 #%%
     
@@ -137,7 +136,7 @@ def test_vae(epoch,beta):
     
 #%% Instanciation du VAE
 
-vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims)
+vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).to(device)
 optimizer = torch.optim.Adam(vae.parameters(), 1e-4)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
@@ -152,6 +151,10 @@ for epoch in range(num_epoch):
     train_loss = train_vae(epoch,beta)
     _ = test_vae(epoch,beta)
     scheduler.step(train_loss)
+    
+    if epoch % 10 == 0 and epoch != 0:
+        torch.save(vae.state_dict(), saving_dir + 'VAE_AUDIO_128_epoch' + epoch)  
+        
     
 #%% Saving model
 import pickle
