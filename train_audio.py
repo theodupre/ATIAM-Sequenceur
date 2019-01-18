@@ -15,7 +15,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from src import vae_audio as audio
 from src import DatasetLoader as dataset
 #%% Loading data
-batch_size = 16
+batch_size = 200
 data_dir = 'data/dataset_audio/'
 dataset = dataset.DatasetLoader(data_dir,transform=True, audio=True)
 
@@ -53,7 +53,7 @@ H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respec
 D_out : dimension d'une donnée en sortie (= D_in)
 D_z : dimension de l'epace latent
 """
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
 #### Cyran's parameters of the death
 # I'll make the code compatible with this fuckin shit, I'll send you a similar code in a while
