@@ -5,9 +5,18 @@ Created on Tue Nov 27 19:34:36 2018
 
 @author: theophile
 
-30/11 : Code du VAE en pytorch, s'execute sans erreur mais ne semble pas fonctionner 
-        correctement (loss converge vers -10 ?)
-        En plus l'image reconstituée est toujours identique (une sorte de 9 très floue)
+Script to train the gaussian vae
+
+First, the MNIST dataset is loaded.
+Then, the parameters of the network are instanciated.
+The train and test method are defined, the vae is instanciated
+Finally, the training process is launched and the weights and the loss 
+are stored.
+
+The latent space is contrained to be gaussian (i.e. mean and variance)
+The output is constrained to be gaussian because the data is
+composed of real values (i.e. pixel value)
+
 """
 import os
 import numpy as np
@@ -18,13 +27,10 @@ from torchvision.utils import save_image
 
 from src import vae_gaussian as gaussian
 
+
+
 #%% Loading data
-'''
-Télechargement du dataset MNIST avec transformation des fichiers en Tensor et
-binarisation des images
-Les objets DataLoader permettent d'organiser les fichiers en batch et de pouvoir
-y accéder facilement pour l'entraînement
-'''
+
 batch_size = 512
 data_dir = 'data'
 train_dataset = datasets.MNIST(data_dir, train=True, download=True, 
@@ -38,25 +44,28 @@ test_dataset = datasets.MNIST(data_dir, train=False, download=True,
 train_loader = DataLoader(train_dataset,batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset,batch_size=batch_size, shuffle=True)
 
-# Creation d'un dossier results/ pour stocker les resultats
-results_dir = 'results/'
+# Creation of dir to store model weights and to store results
+results_dir = 'results/MNIST/'
 saving_dir = 'models/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 if not os.path.exists(saving_dir):
     os.makedirs(saving_dir)
 
-#%% Définition des modules du VAE : Encoder, Z_sampling, Decoder
+#%% Parmeters of the network
 
 """
-N : taille d'un batch
-D_in : dimension d'entrée d'une donnée  
-H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respectivement
-D_out : dimension d'une donnée en sortie (= D_in)
-D_z : dimension de l'epace latent
+N : batch_size
+D_in : input dimension
+H_enc, H_dec : Hidden layer size (encoder and decoder respectively)
+D_out : output dimension (= D_in)
+D_z : latent space dimension
 """
-N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 800, 10, 800, 784
-    
+
+N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 800, 5, 800, 784
+
+#%% Train and test method
+
 def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
@@ -70,7 +79,7 @@ def train_vae(epoch,beta):
         loss.backward()
         optimizer.step()
         
-        # Affichage de la loss tous les 100 batchs
+        # Print loss every 10 batches
         if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
@@ -117,35 +126,22 @@ optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
 #%% Training loop
-beta = 4 # warm up coefficient 
+beta = 1 # warm up coefficient 
 num_epoch = 100
 mean_train_loss = []
 mean_test_loss = []
 # Itération du modèle sur 50 epoches
 for epoch in range(num_epoch):
-    #beta += 1/num_epoch
+
     train_loss = train_vae(epoch,beta)
     _ = test_vae(epoch,beta)
     scheduler.step(train_loss)
     
-    # Sauvegarde d'exemples de données générées à partir de l'espace latent
-#    with torch.no_grad():
-#        #sample = torch.randn(64, D_z)
-#        Nd = 8
-#        sample_x, sample_y = np.meshgrid(4*np.linspace(0,1,Nd)-2,4*np.linspace(0,1,Nd)-2)
-#        sample_x = sample_x.reshape(Nd**2,1)
-#        sample_y = sample_y.reshape(Nd**2,1)
-#        sample = np.concatenate((sample_x,sample_y),axis=1)
-#        sample = torch.from_numpy(sample).type(torch.float)
-#        sample = vae.decoder(sample)
-#        save_image(sample.view(Nd**2, 1, 28, 28), 
-#'results/sample_' + str(epoch) + '.png')
-
 #%% Saving model
 import pickle
 
-torch.save(vae.state_dict(), saving_dir + 'VAE_GAUSSIAN_10_BETA_4_hid800_2')   
+torch.save(vae.state_dict(), saving_dir + 'VAE_GAUSSIAN_10_BETA_1_hid800')   
 loss = {"train_loss":mean_train_loss, "test_loss":mean_test_loss}  
 
-with open(saving_dir + 'VAE_GAUSSIAN_10_BETA_4_hid800_loss2.pickle', 'wb') as handle:
+with open(saving_dir + 'VAE_GAUSSIAN_10_BETA_1_hid800.pickle', 'wb') as handle:
     pickle.dump(loss, handle, protocol=pickle.HIGHEST_PROTOCOL)     

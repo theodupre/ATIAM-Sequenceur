@@ -4,7 +4,27 @@
 Created on Mon Jan 14 11:12:19 2019
 
 @author: theophile
+
+Script to train the convolutional vae
+
+First, the dataset containing drum sound transform with the gabor transform
+is loaded.
+Then, the parameters of the network are instanciated.
+The train and test method are defined, the vae is instanciated
+Finally, the training process is launched and the weights and the loss 
+are stored.
+
+The latent space is contrained to be gaussain (i.e. mean and variance)
+The output is also constrained to be gaussian because the data is composed of 
+real values 
+
+REQUIREMENT : the dataset is not on the git repository, please contact us 
+if you want it 
+
+dupre@atiam.fr
+
 """
+
 
 import os
 import pickle
@@ -14,6 +34,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 
 from src import vae_audio as audio
 from src import DatasetLoader as dataset
+
 #%% Loading data
 batch_size = 200
 data_dir = 'data/dataset_audio/'
@@ -21,7 +42,7 @@ dataset = dataset.DatasetLoader(data_dir,transform=True, audio=True)
 
 test_split = .2
 shuffle_dataset = True
-random_seed= 42
+
 # Creating data indices for training and validation splits:
 dataset_size = len(dataset)
 indices = list(range(dataset_size))
@@ -37,51 +58,35 @@ train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
 test_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
                                                 sampler=test_sampler)
 
-results_dir = 'results/'
+# Create directory to store model weights
 saving_dir = 'models/audio/'
-if not os.path.exists(results_dir):
-    os.makedirs(results_dir)
 if not os.path.exists(saving_dir):
     os.makedirs(saving_dir)
 
-#%% Définition des modules du VAE : Encoder, Z_sampling, Decoder
+#%% Definition of the network parameters
 
-"""
-N : taille d'un batch
-D_in : dimension d'entrée d'une donnée
-H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respectivement
-D_out : dimension d'une donnée en sortie (= D_in)
-D_z : dimension de l'epace latent
-"""
 device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
-print(device)
 
 #### Cyran's parameters of the death
-# I'll make the code compatible with this fuckin shit, I'll send you a similar code in a while
+#The Conv Layers: [in_channels, out_channels, kernel_size, stride, padding]
 conv1 = [1, 8, (11,5), (3,2), (5,2), (2,2)]
 conv2 = [8, 16, (11,5), (3,2), (5,2), (2,2)]
 conv3 = [16, 32, (11,5), (3,2), (5,2), (2,2)]
 conv = [conv1, conv2, conv3]
 
-#The MLP hidden Layers : [[in_dim,hlayer1_dim], [hlayer1_dim,hlayer2_dim], ...]
+#The MLP hidden Layers : [[in_dim,hlayer1_dim], [hlayer1_dim,hlayer2_dim]]
 enc_h_dims = [[10240, 1024], [1024, 512]]
 dec_h_dims = [[128, 1024], [1024, 10240]]
+
 #The Deconv Layers: [in_channels, out_channels, kernel_size, stride, padding, output_padding]
 deconv1 = [32, 16, (11,5), (3,2), (5,2), (2,2), (0,1,0,0)]
 deconv2 = [16, 8, (11,5), (3,2), (5,2), (2,2), (0,0,1,0)]
 deconv3 = [8, 1, (11,5), (3,2), (5,2), (2,2), (0,0,1,0)]
 deconv = [deconv1, deconv2, deconv3]
 
-
-
-N, input_size, D_z = batch_size, (410,157), 128
-#input = torch.zeros(1,1,410,157)
-#label = torch.zeros(1,8)
-#vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).to(device)
-#latent1, latent2,out,out1 = vae.forward(input, label)
-
+N, input_size, D_z = batch_size, (410,157), 128 # batch_size, input-size, latent space dimension
 #%%
-
+# Train method
 def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
@@ -91,7 +96,7 @@ def train_vae(epoch,beta):
         data = data.to(device)
         label = label.to(device)
 
-        out_mu, out_var, latent_mu, latent_logvar = vae(data, label)
+        out_mu, out_var, latent_mu, latent_logvar = vae(data, label) # forward
         loss = audio.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
         train_loss += loss.item()
         loss.backward()
@@ -108,7 +113,7 @@ def train_vae(epoch,beta):
     mean_train_loss.append(train_loss*N / len(train_loader.dataset))
     return train_loss
 
-
+#Test method
 def test_vae(epoch,beta):
     test_loss = 0
     vae.eval()
@@ -118,7 +123,7 @@ def test_vae(epoch,beta):
             data = data.to(device)
             label = label.to(device)
 
-            out_mu, out_var, latent_mu, latent_logvar = vae(data, label)
+            out_mu, out_var, latent_mu, latent_logvar = vae(data, label) # forward
             loss = audio.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
             test_loss += loss.item()
 
@@ -130,10 +135,9 @@ def test_vae(epoch,beta):
 
 
 #%% Instanciation du VAE
-#vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).to(device)
 
 vae = audio.VAE_AUDIO(input_size, conv, enc_h_dims, D_z, deconv, dec_h_dims).to(device)
-optimizer = torch.optim.Adam(vae.parameters(), 1e-4)
+optimizer = torch.optim.Adam(vae.parameters(), 1e-4) 
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
 #%% Training loop
@@ -143,7 +147,7 @@ mean_train_loss = []
 mean_test_loss = []
 # Itération du modèle sur 50 epoches
 for epoch in range(num_epoch):
-    #beta += 1/num_epoch
+
     train_loss = train_vae(epoch,beta)
     _ = test_vae(epoch,beta)
     scheduler.step(train_loss)

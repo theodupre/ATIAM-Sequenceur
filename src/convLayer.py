@@ -9,6 +9,16 @@ Created on Sun Jan 13 17:15:00 2019
 import torch.nn as nn
 import torch.nn.functional as F
 
+"""
+Convolution Module to encode audio gabor transform
+The module is composed of 3 convolutional layers, each one made of:
+Conv2d -> Relu -> BatchNorm2d 
+@param : convParams : list containing parameters of each layer. In this order
+				input_channels, output_channels, kernel_size, stride, padding
+				
+@output : 3rd layer output				 
+"""
+
 class convNN(nn.Module):
     def __init__(self, convParams):
         super(convNN,self).__init__()
@@ -30,6 +40,18 @@ class convNN(nn.Module):
         return out3
 
 
+"""
+Deconvolution Module to decode compressed representation of audio gabor transform sampled 
+from a latent space
+The module is composed of 3 deconvolutional layers, each one made of:
+ConvTransposed2d -> BatchNorm2d -> Relu -> ZeroPad2d
+Ouput_padding is used to retrieve encode module output size. (problem when input size is odd) 
+@param : convParams : list containing parameters of each layer. In this order
+				input_channels, output_channels, kernel_size, stride, padding,
+				output_padding
+				
+@output : 3rd layer output				 
+"""
 class deconvNN(nn.Module):
     def __init__(self, deconvParams):
         super(deconvNN,self).__init__()
