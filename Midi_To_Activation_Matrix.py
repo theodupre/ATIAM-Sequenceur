@@ -49,28 +49,29 @@ def get_instrument(midi):
 
 '''
 Creation of an activation matrix corresponding to the piece
-IN : the piece parser, nb_mesure the numver of measure, the quantification
-OUT : the activation_matrix (8,quantification * nb_measure)
+IN : piece parser, nb_mesure the number of measure, quantification
+OUT : activation_matrix array (8,quantification * nb_measure)
 '''
 
 
 def get_activation_matrix(piece, nb_measure, quantification):
     nb_instrument = 8       # fixed
-    quantification = 64     # number of divison in one measure
-    nb_measure = 1          # number of measures
-
+    quantification = 64     # number of divison in one bar
+    nb_measure = 1          # number of bars
+    
+    # initialisation of the activation matrix full of zeros
     activation_matrix = np.zeros((nb_instrument, quantification * nb_measure))
 
     for part in piece.parts:
-        for this_note in part.recurse(classFilter=('Note', 'Chord')):
+        for this_note in part.recurse(classFilter=('Note', 'Chord')): 
             offset = this_note.offset
-            metro = np.int(offset * quantification / 4)
+            metro = np.int(offset * quantification / 4)     # quantization of the offset of the note (bar 4/4)
             if metro < quantification * nb_measure:
-                if this_note.isChord:
+                if this_note.isChord:        # if the note is a chord, we need to travel every note 
                     for note in this_note:
                         instrument = get_instrument(note.pitch.midi)
                         activation_matrix[instrument, metro] = 1
-                else:
+                else:                       # if the note is a single note
                     instrument = get_instrument(this_note.pitch.midi)
                     activation_matrix[instrument, metro] = 1
 
@@ -104,6 +105,7 @@ plt.imshow(np.asarray(activation_matrix), origin='lower')
 plt.set_cmap('gray')
 #plt.savefig("test.eps", format="eps")
 
+#Creation of the array dataset
 
 # for data_file in list_dir:
 #    if os.path.splitext(data_file)[1] == '.mid' or os.path.splitext(data_file)[1] == '.MID' : #Verification files in the floder are midi files

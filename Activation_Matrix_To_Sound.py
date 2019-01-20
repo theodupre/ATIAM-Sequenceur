@@ -74,41 +74,40 @@ def play_sound(activation_matrix):
     lenght_sound_sec = 60 / bpm * 4  # 4/4 measure
 
     lenght_sample = len(s_Kick)
-    lenght_sound_ech = int(lenght_sound_sec * fs) + lenght_sample
+    lenght_sound_ech = int(lenght_sound_sec * fs) + lenght_sample #conversion of seconds to samples
 
-    sound = np.zeros(lenght_sound_ech)
-    time_ech = 0
+    sound = np.zeros(lenght_sound_ech) # init of the sound array full of zeros
+    time_ech = 0 # counter of time in samples
 
-    for activation in activation_matrix.T[:, :]:
+    for activation in activation_matrix.T[:, :]: # looking in each column of the activation_matrix
         itemindex = np.where(activation == 1)[0]
         if time_ech + lenght_sample < len(sound):
-            if itemindex.size == 0:
+            if itemindex.size == 0: # if no activation in a column
                 time_ech = time_ech + int(lenght_sound_ech / quantification)
             else:
-
-                for item in itemindex:
-                    if item == 0:
+                for item in itemindex: # for each activation , add of the corresponding sample depending of the instrument
+                    if item == 0: # Kick
                         sound[time_ech:time_ech +
                               lenght_sample] = sound[time_ech:time_ech + lenght_sample] + s_Kick
-                    if item == 1:
+                    if item == 1: # Snare
                         sound[time_ech:time_ech +
                               lenght_sample] = sound[time_ech:time_ech + lenght_sample] + s_Snare
-                    if item == 2:
+                    if item == 2: # Clap
                         sound[time_ech:time_ech +
                               lenght_sample] = sound[time_ech:time_ech + lenght_sample] + s_Clap
-                    if item == 3:
+                    if item == 3: # HHO
                         sound[time_ech:time_ech +
                               lenght_sample] = sound[time_ech:time_ech + lenght_sample] + s_HHO
-                    if item == 4:
+                    if item == 4: # HHC
                         sound[time_ech:time_ech +
                               lenght_sample] = sound[time_ech:time_ech + lenght_sample] + s_HHC
-                    if item == 5:
+                    if item == 5: # Tom
                         sound[time_ech:time_ech +
                               lenght_sample] = sound[time_ech:time_ech + lenght_sample] + s_Tom
-                    if item == 6:
+                    if item == 6: # Cymb
                         sound[time_ech:time_ech +
                               lenght_sample] = sound[time_ech:time_ech + lenght_sample] + s_Cymb
-                    if item == 7:
+                    if item == 7: # Percu
                         sound[time_ech:time_ech +
                               lenght_sample] = sound[time_ech:time_ech + lenght_sample] + s_Percu
 
@@ -131,14 +130,15 @@ IN : event coming from the <Button-1> wich corresponds to the left mouse click
 
 def callback(event):
     frame.focus_set()
+    
+    #Creation of a point  when clicking
     python_green = "#476042"
-
     x1, y1 = (event.x - 1), (event.y - 1)
     x2, y2 = (event.x + 1), (event.y + 1)
-
     frame.create_oval(x1, y1, x2, y2, fill=python_green)
-    # samples are form -4 to 4
-    sample = torch.tensor([[(event.x - 200) / 50, (event.y - 200) / 50]])
+    
+    
+    sample = torch.tensor([[(event.x - 200) / 50, (event.y - 200) / 50]]) # samples are in range [-4; 4]
     play_sound(generate_matrix(sample))
 
 
