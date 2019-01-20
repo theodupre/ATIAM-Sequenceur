@@ -40,29 +40,34 @@ Generation of an activation matrix depending of the sample chosen
 IN : sample (tensor with shape 1xD_z)
 OUT : activation_matrix (8x64)
 '''
+
+
 def generate_matrix(sample):
     print(sample)
     sample = vae.decoder(sample)
     y = sample.detach().numpy()
     for i in range(y.size):
-        if y[0][i] > 0.3: #binarization of the matrix over a threshold
+        if y[0][i] > 0.3:  # binarization of the matrix over a threshold
             y[0][i] = 1
         else:
             y[0][i] = 0
     activation_matrix = y.reshape(8, 64)
-    
+
 #    plt.figure(1)
 #    plt.imshow(activation_matrix, cmap='gray',origin = 'lower')
 #    plt.savefig("matrice.eps", format="eps")
 
     return activation_matrix
 
+
 '''
 Play the sound corresponding to an activation matrix
 IN : activation_matrix (8x64)
-'''  
+'''
+
+
 def play_sound(activation_matrix):
-    
+
     bpm = 120
     quantification = 64         # number of divison in one measure
 
@@ -111,7 +116,7 @@ def play_sound(activation_matrix):
                     int((lenght_sound_ech + 1) / quantification)
 
     sd.play(sound, fs)
-    
+
 #    plt.figure(2)
 #    plt.plot(sound)
 #    plt.savefig("sound.eps", format="eps")
@@ -119,9 +124,10 @@ def play_sound(activation_matrix):
 
 '''
 Callback function that is the answer from an event and create a tensor from
-x and y coordonates of the window with shape 400 x 400. 
+x and y coordonates of the window with shape 400 x 400.
 IN : event coming from the <Button-1> wich corresponds to the left mouse click
 '''
+
 
 def callback(event):
     frame.focus_set()
@@ -131,11 +137,13 @@ def callback(event):
     x2, y2 = (event.x + 1), (event.y + 1)
 
     frame.create_oval(x1, y1, x2, y2, fill=python_green)
-    sample = torch.tensor([[(event.x - 200) / 50, (event.y - 200) / 50]]) #samples are form -4 to 4
+    # samples are form -4 to 4
+    sample = torch.tensor([[(event.x - 200) / 50, (event.y - 200) / 50]])
     play_sound(generate_matrix(sample))
 
 
-# %%
+# %% Main
+
 root = Tk()
 
 frame = Canvas(root, width=400, height=400, bg='ivory')

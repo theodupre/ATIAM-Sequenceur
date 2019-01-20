@@ -93,7 +93,7 @@ def importMIDI(path):
 # %% Main
 
 
-root = r'C:\Users\dell\Documents\ATIAM\Info\ATIAM-Sequenceur\Dataset_Drum_Groove_Midi'
+root = r'Dataset_Drum_Groove_Midi'
 list_dir = os.listdir(root)  # List of files in the directory
 
 track_path = os.path.join(root, 'HOUSE1.mid')
