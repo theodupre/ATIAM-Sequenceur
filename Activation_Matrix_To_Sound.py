@@ -74,9 +74,9 @@ def play_sound(activation_matrix):
     lenght_sound_sec = 60 / bpm * 4  # 4/4 measure
 
     lenght_sample = len(s_Kick)
-    lenght_sound_ech = int(lenght_sound_sec * fs) + lenght_sample
+    lenght_sound_ech = int(lenght_sound_sec * fs) + lenght_sample #conversion of seconds to samples
 
-    sound = np.zeros(lenght_sound_ech)
+    sound = np.zeros(lenght_sound_ech) # 
     time_ech = 0
 
     for activation in activation_matrix.T[:, :]:
