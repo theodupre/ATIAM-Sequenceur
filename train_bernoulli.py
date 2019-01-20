@@ -32,7 +32,7 @@ from src import DatasetLoader as dataset
 #%% Loading data
 
 batch_size = 8
-data_dir = 'data/dataset_sequence/'
+data_dir = 'Dataset_Drum_Groove_Pattern/'
 dataset = dataset.DatasetLoader(data_dir,transform=True)
 
 test_split = .2
