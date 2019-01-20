@@ -14,7 +14,6 @@ from torchvision.utils import save_image
 from torch.utils.data.sampler import SubsetRandomSampler
 
 from src import vae_bernoulli as bernoulli
-from src import vae_gaussian as gaussian
 from src import DatasetLoader as dataset
 
 #%% Loading data
