@@ -4,6 +4,19 @@
 Created on Fri Dec 14 11:06:47 2018
 
 @author: theophile
+
+Script to train the bernoulli vae
+
+First, the dataset containing activation matrices is loaded.
+Then, the parameters of the network are instanciated.
+The train and test method are defined, the vae is instanciated
+Finally, the training process is launched and the weights and the loss 
+are stored.
+
+The latent space is contrained to be gaussian (i.e. mean and variance)
+The output is constrained to be bernoulli distributed because the data is
+composed of discrete values {0,1}
+
 """
 import os
 import numpy as np
@@ -17,13 +30,7 @@ from src import vae_bernoulli as bernoulli
 from src import DatasetLoader as dataset
 
 #%% Loading data
-'''
-Télechargement du dataset MNIST avec transformation des fichiers en Tensor et
-normalisation (je ne sais pas vraiment ce que fait la normalisation)
-Les objets DataLoader permettent d'organiser les fichiers en batch et de pouvoir
-y accéder facilement pour l'entraînement
-Pour l'instant, le test_dataset n'est pas utilisé
-'''
+
 batch_size = 8
 data_dir = 'data/dataset_sequence/'
 dataset = dataset.DatasetLoader(data_dir,transform=True)
@@ -46,33 +53,25 @@ train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
 test_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
                                                 sampler=test_sampler)
 
-#train_dataset = datasets.MNIST(data_dir, train=True, download=True, 
-#                    transform=transforms.Compose([transforms.ToTensor(),
-#                    lambda x: x > 0, # binarisation de l'image
-#                    lambda x: x.float()]))
-#test_dataset = datasets.MNIST(data_dir, train=False, download=True, 
-#                    transform=transforms.Compose([transforms.ToTensor(),
-#                    lambda x: x > 0, # binarisation de l'image
-#                    lambda x: x.float()]))
 
-# Creation d'un dossier results/ pour stocker les resultats et d'un dossier models/ pour sauvegarder les paramètres
-results_dir = 'results/'
+# Creation of a folder to store model weights
 saving_dir = 'models/sequence/'
-if not os.path.exists(results_dir):
-    os.makedirs(results_dir)
 if not os.path.exists(saving_dir):
     os.makedirs(saving_dir)
 
-#%% Définition des modules du VAE : Encoder, Z_sampling, Decoder
+#%% Parmeters of the network
 
 """
-N : taille d'un batch
-D_in : dimension d'entrée d'une donnée  
-H_enc, H_dec : dimensions de la couche cachée du decoder et de l'encoder respectivement
-D_out : dimension d'une donnée en sortie (= D_in)
-D_z : dimension de l'epace latent
+N : batch_size
+D_in : input dimension
+H_enc, H_dec : Hidden layer size (encoder and decoder respectively)
+D_out : output dimension (= D_in)
+D_z : latent space dimension
 """
 N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 512, 800, 5, 800, 512
+
+
+#%% Train and test method
 
 mean_train_loss = []
 def train_vae(epoch,beta):
@@ -87,7 +86,7 @@ def train_vae(epoch,beta):
         loss.backward()
         optimizer.step()
         
-        # Affichage de la loss tous les 100 batchs
+        # Display of loss every 10 batches
         if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
