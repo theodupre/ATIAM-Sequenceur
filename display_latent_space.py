@@ -17,9 +17,9 @@ from src import vae_bernoulli as bernoulli
 from src import DatasetLoader as data
    
 #%% Load vae, you can choose between gaussain and bernoulli models
-D_in, D_enc, D_z, D_dec, D_out = 784, 800, 5, 800, 784 # Change D_z depending on dimensions of latent space
-vae = gaussian.VAE_GAUSSIAN(D_in, D_enc, D_z, D_dec, D_out); # change 'gaussian' to 'bernoulli' to change the model
-vae.load_state_dict(torch.load('models/VAE_GAUSSIAN_10_BETA_4_hid800')) # idem 
+D_in, D_enc, D_z, D_dec, D_out = 512, 800, 2, 800, 512 # Change D_z depending on dimensions of latent space
+vae = bernoulli.VAE_BERNOULLI(D_in, D_enc, D_z, D_dec, D_out); # change 'gaussian' to 'bernoulli' to change the model
+vae.load_state_dict(torch.load('models/sequence/VAE_BERNOULLI_2_BETA_4_hid800')) # idem 
 vae.eval()
 
 #%% Sampling from latent space
@@ -28,13 +28,13 @@ print(sample)
 sample = vae.decoder(sample)
 y = sample.detach().numpy()
 for i in range(y.size):
-    if y[0][i] > 0.7:
+    if y[0][i] > 0.5:
         y[0][i] = 1
     else:
         y[0][i] = 0
-x = y.reshape(8,128) 
+x = y.reshape(8,64) 
 plt.figure()
-plt.imshow(x, cmap='gray')
+plt.imshow(x, cmap='gray',origin = 'lower')
 
 #%% Plot 2D latent space
 data_pts = 1000
@@ -99,8 +99,8 @@ cb = plt.colorbar()
 
 #%% PLot loss curves
 
-saving_dir = 'models/'
-pickle_in = open(saving_dir + 'VAE_GAUSSIAN_10_BETA_4_hid800_loss.pickle',"rb")
+saving_dir = 'models/sequence/'
+pickle_in = open(saving_dir + 'VAE_BERNOULLI_2_BETA_4_hid800_loss.pickle',"rb")
 loss_beta_5 = pickle.load(pickle_in)
 #pickle_in = open(saving_dir + 'VAE_BERNOULLI_10_BETA_4_loss.pickle',"rb")
 #loss_beta_10 = pickle.load(pickle_in)
