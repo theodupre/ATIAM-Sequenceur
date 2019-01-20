@@ -1,6 +1,3 @@
-
-
-
 import math
 import sys
 import time
@@ -14,7 +11,7 @@ import os
 from os.path import expanduser
 import scipy.io.wavfile
 
-# Robin Malzac
+
 
 def hz_to_mel(f_hz):
     """Convert Hz to mel scale.

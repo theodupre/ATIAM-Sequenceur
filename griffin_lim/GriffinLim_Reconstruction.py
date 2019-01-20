@@ -1,12 +1,9 @@
-
-
 import argparse
 from pylab import *
 import os
 
 import GriffinLim_Methods
 
-# Robin Malzac
 
 def run_demo():
     """Test Griffin & Lim method for reconstructing audio from a magnitude spectrogram.
