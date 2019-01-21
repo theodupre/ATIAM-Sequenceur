@@ -18,7 +18,7 @@ To finish the run, close this window.
 
 ## Create activation matrices from midi
 To create these activation matrices, open the `Midi_To_Activation_Matrix.py` file and execute it.
-The example is done with the midi file HOUSE1.py
+The example is done with the midi file HOUSE1.mid
 
 ## Pattern Datasets
 All the midi dataset is in the Dataset_Drum_Groove_Midi folder. 
@@ -35,7 +35,7 @@ The corresponding activation matrices are in the Dataset_Drum_Groove_Pattern fol
 ## Audio Dataset and Reconstruction
 We train the audio dataset on the gabor transform of signals.
 To compute the gabor transform use : `python3 audio2nsgt.py -i dataset_audio/File/ -o results -d 1`
-If the network works, to reconstruct the audio signal we use Inverse Gabor Transform from the library nsgt (Grill) whitch only give magnitude. Then, Griffin Lim iterative algorithm is used to reconstruct the phase. Our implementation is a modified version of bkvogel's. It does not work on some part of our audio dataset.
+If the network works, to reconstruct the audio signal we use Inverse Gabor Transform from the library nsgt (Grill) which only give magnitude - use nsgt.backward(). Then, Griffin Lim iterative algorithm is used to reconstruct the phase. Our implementation is a modified version of bkvogel's. It does not work on some part of our audio dataset.
 
 
 ## Train Convolutional variational autoencoder
