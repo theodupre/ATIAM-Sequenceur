@@ -21,6 +21,7 @@ composed of discrete values {0,1}
 import os
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader 
 from torchvision.utils import save_image
@@ -28,6 +29,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 
 from src import vae_bernoulli as bernoulli
 from src import DatasetLoader as dataset
+from src import utils
 
 #%% Loading data
 
@@ -59,7 +61,17 @@ saving_dir = 'models/sequence/'
 if not os.path.exists(saving_dir):
     os.makedirs(saving_dir)
 
-#%% Parmeters of the network
+#%% Definition of the network parameters
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(device)
+
+# Creation of a folder to store test images
+test_dir = 'results/'
+if not os.path.exists(test_dir):
+    os.makedirs(test_dir)
+
+#%% Parameters of the network
 
 """
 N : batch_size
@@ -79,6 +91,7 @@ def train_vae(epoch,beta):
     vae.train()
     for batch_idx, data in enumerate(train_loader):
         optimizer.zero_grad()
+        data = data.to(device)
         data = data.reshape((-1,512))
         x_approx, mu, var = vae(data)
         loss = bernoulli.vae_loss(data, x_approx, mu, var, beta)
@@ -87,10 +100,12 @@ def train_vae(epoch,beta):
         optimizer.step()
         
         # Display of loss every 10 batches
+        """         
         if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
+                100. * batch_idx / len(train_loader), loss.item())) 
+        """
             
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss*N / len(train_loader.dataset)))
@@ -103,6 +118,7 @@ def test_vae(epoch,beta):
     with torch.no_grad():
         for batch_idx, (data) in enumerate(test_loader):
             optimizer.zero_grad()
+            data = data.to(device)
             data = data.reshape((-1,512))
             
             x_approx, mu, var = vae(data)
@@ -115,7 +131,7 @@ def test_vae(epoch,beta):
                 comparison = torch.cat([data.view(N, 1, 8, 64)[:n],
                                       x_approx.view(N, 1, 8, 64)[:n]])
                 save_image(comparison.cpu(),
-                           'results/reconstruction_' + str(epoch) + '.png', nrow=n)
+                           test_dir + 'reconstruction_' + str(epoch) + '.png', nrow=n)
 
     test_loss /= len(test_loader.dataset)/N
     print('====> Test set loss: {:.4f}'.format(test_loss))
@@ -124,26 +140,30 @@ def test_vae(epoch,beta):
     
 #%% Instanciation du VAE
 
-vae = bernoulli.VAE_BERNOULLI(D_in, D_enc, D_z, D_dec, D_out)
+vae = bernoulli.VAE_BERNOULLI(D_in, D_enc, D_z, D_dec, D_out).to(device)
 optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
 
 #%% Training loop
-beta = 4 # warm up coefficient 
-num_epoch = 200
+beta = 1 # warm up coefficient 
+num_epoch = 1000 
 # Itération du modèle sur 50 epoches
 for epoch in range(num_epoch):
     
     train_vae(epoch,beta)
     test_vae(epoch,beta)
 
+## Plot learning curve
+loss = {"train_loss":mean_train_loss, "test_loss":mean_test_loss}  
+utils.displayLoss(loss)
+
 #%% Saving model
-import pickle
+""" import pickle
 
 torch.save(vae.state_dict(), saving_dir + 'VAE_BERNOULLI_5_BETA_4_hid800')   
-loss = {"train_loss":mean_train_loss, "test_loss":mean_test_loss}  
 
 with open(saving_dir + 'VAE_BERNOULLI_5_BETA_4_hid800_loss.pickle', 'wb') as handle:
     pickle.dump(loss, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
+"""
 
 

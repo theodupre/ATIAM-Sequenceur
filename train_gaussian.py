@@ -24,8 +24,11 @@ import torch
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader 
 from torchvision.utils import save_image
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
 
 from src import vae_gaussian as gaussian
+from src import utils
 
 
 
@@ -52,6 +55,8 @@ if not os.path.exists(results_dir):
 if not os.path.exists(saving_dir):
     os.makedirs(saving_dir)
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 #%% Parmeters of the network
 
 """
@@ -69,10 +74,11 @@ N, D_in, D_enc, D_z, D_dec, D_out = batch_size, 784, 800, 5, 800, 784
 def train_vae(epoch,beta):
     train_loss = 0
     vae.train()
+
     for batch_idx, (data, _) in enumerate(train_loader):
         optimizer.zero_grad()
+        data = data.to(device)
         data = data.reshape((-1,784))
-        
         out_mu, out_var, latent_mu, latent_logvar = vae(data)
         loss = gaussian.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
         train_loss += loss.item()
@@ -80,14 +86,19 @@ def train_vae(epoch,beta):
         optimizer.step()
         
         # Print loss every 10 batches
+        '''
         if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.item()))
-            
+        '''  
+    
+    writer.add_scalar('loss/train', train_loss, epoch)
+
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss*N / len(train_loader.dataset)))
     mean_train_loss.append(train_loss*N / len(train_loader.dataset))
+
     return train_loss
         
                 
@@ -97,8 +108,8 @@ def test_vae(epoch,beta):
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(test_loader):
             optimizer.zero_grad()
-            data = data.reshape((-1,784))
-            
+            data = data.to(device)
+            data = data.reshape((-1,784))            
             out_mu, out_var, latent_mu, latent_logvar = vae(data)
             loss = gaussian.vae_loss(data, out_mu, out_var, latent_mu, latent_logvar, beta)
             test_loss += loss.item()
@@ -109,9 +120,14 @@ def test_vae(epoch,beta):
 
                 comparison = torch.cat([data.view(N, 1, 28, 28)[:n],
                                       out_mu.view(N, 1, 28, 28)[:n]])
+                print(comparison.shape)
+                print(n)
+                writer.add_image('reconstruction_' + str(epoch), comparison.cpu())
                 save_image(comparison.cpu(),
                            'results/reconstruction_' + str(epoch) + '.png', nrow=n)
                 
+        writer.add_scalar('loss/test', test_loss, epoch)
+
     test_loss /= len(test_loader.dataset)/N
     print('====> Test set loss: {:.4f}'.format(test_loss))
     mean_test_loss.append(test_loss)
@@ -121,13 +137,13 @@ def test_vae(epoch,beta):
     
 #%% Instanciation du VAE
 
-vae = gaussian.VAE_GAUSSIAN(D_in, D_enc, D_z, D_dec, D_out)
+vae = gaussian.VAE_GAUSSIAN(D_in, D_enc, D_z, D_dec, D_out).to(device)
 optimizer = torch.optim.Adam(vae.parameters(), 1e-3)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min')
 
 #%% Training loop
 beta = 1 # warm up coefficient 
-num_epoch = 100
+num_epoch = 1000
 mean_train_loss = []
 mean_test_loss = []
 # Itération du modèle sur 50 epoches
@@ -136,12 +152,19 @@ for epoch in range(num_epoch):
     train_loss = train_vae(epoch,beta)
     _ = test_vae(epoch,beta)
     scheduler.step(train_loss)
+    writer.flush()
+
+## Plot learning curve
+loss = {"train_loss":mean_train_loss, "test_loss":mean_test_loss}  
+utils.displayLoss(loss)
     
 #%% Saving model
+'''
 import pickle
 
 torch.save(vae.state_dict(), saving_dir + 'VAE_GAUSSIAN_10_BETA_1_hid800')   
 loss = {"train_loss":mean_train_loss, "test_loss":mean_test_loss}  
 
 with open(saving_dir + 'VAE_GAUSSIAN_10_BETA_1_hid800.pickle', 'wb') as handle:
-    pickle.dump(loss, handle, protocol=pickle.HIGHEST_PROTOCOL)     
+    pickle.dump(loss, handle, protocol=pickle.HIGHEST_PROTOCOL) 
+'''   
